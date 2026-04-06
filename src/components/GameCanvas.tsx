@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import Renderer from '@/engine/Renderer';
 import { ActiveNote, Particle, HitEffect, MidiNote } from '@/types/game';
+import { PianoKeyPos } from '@/utils/pianoPositions';
 
 interface GameCanvasProps {
   notes: ActiveNote[];
@@ -13,6 +14,7 @@ interface GameCanvasProps {
   bpm: number;
   songProgress: number;
   activeLanes: MidiNote[];
+  pianoPositions?: Map<MidiNote, PianoKeyPos>;
 }
 
 export default function GameCanvas({
@@ -24,6 +26,7 @@ export default function GameCanvas({
   bpm,
   songProgress,
   activeLanes,
+  pianoPositions,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
@@ -38,10 +41,10 @@ export default function GameCanvas({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Update lane config when activeLanes change
+  // Update lane config when activeLanes or pianoPositions change
   useEffect(() => {
-    rendererRef.current?.setLaneConfig(activeLanes);
-  }, [activeLanes]);
+    rendererRef.current?.setLaneConfig(activeLanes, pianoPositions);
+  }, [activeLanes, pianoPositions]);
 
   // Render frame
   const renderFrame = useCallback(() => {

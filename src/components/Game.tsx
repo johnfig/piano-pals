@@ -6,6 +6,7 @@ import { Track } from '@/types/tracks';
 import { getSong } from '@/data/songRegistry';
 import { getActiveLanes, buildNoteToLane, buildKeyboardMap, buildKeyLabels, DEFAULT_ACTIVE_LANES, DEFAULT_KEY_LABELS } from '@/constants/keyboard';
 import { resolveSongData } from '@/utils/songMode';
+import { computePianoPositions, MIDI_49_LOWEST, MIDI_49_HIGHEST } from '@/utils/pianoPositions';
 import { getLaneColor } from '@/constants/colors';
 import { FALL_DURATION, SONG_START_DELAY } from '@/constants/timing';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -124,6 +125,12 @@ export default function Game() {
     const keyMap = buildKeyboardMap(activeLanes);
     return buildKeyLabels(keyMap);
   }, [effectiveMidiConnected, resolvedSong, activeLanes]);
+
+  // Piano key positions for the full 49-key keyboard (MIDI mode)
+  const pianoPositions = useMemo(() => {
+    if (!effectiveMidiConnected) return undefined;
+    return computePianoPositions(MIDI_49_LOWEST, MIDI_49_HIGHEST);
+  }, [effectiveMidiConnected]);
 
   // Determine initial screen based on profile state
   useEffect(() => {
@@ -269,9 +276,15 @@ export default function Game() {
       audio.playComboSound(currentCombo);
 
       const canvasWidth = window.innerWidth;
-      const effectiveLaneCount = activeLanes.length;
-      const laneWidth = canvasWidth / effectiveLaneCount;
-      const hitX = lane * laneWidth + laneWidth / 2;
+      // Use piano key positions if available, otherwise equal-width lanes
+      let hitX: number;
+      const pos = pianoPositions?.get(midiNote);
+      if (pos) {
+        hitX = pos.center * canvasWidth;
+      } else {
+        const laneWidth = canvasWidth / activeLanes.length;
+        hitX = lane * laneWidth + laneWidth / 2;
+      }
       const hitY = (window.innerHeight - 80) * 0.85;
       const color = getLaneColor(lane);
 
@@ -292,7 +305,7 @@ export default function Game() {
         return next;
       });
     }
-  }, [activeLanes, speedMultiplier]);
+  }, [activeLanes, pianoPositions, speedMultiplier]);
 
   // Handle space for crescendo
   useEffect(() => {
@@ -534,6 +547,7 @@ export default function Game() {
             bpm={currentSong.bpm}
             songProgress={songProgress}
             activeLanes={activeLanes}
+            pianoPositions={pianoPositions}
           />
           <PianoKeyboard
             activeLanes={activeLanes}

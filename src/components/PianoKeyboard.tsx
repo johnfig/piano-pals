@@ -3,6 +3,7 @@
 import { MidiNote } from '@/types/game';
 import { midiNoteToName, isWhiteKey } from '@/constants/keyboard';
 import { getLaneColor } from '@/constants/colors';
+import { MIDI_49_LOWEST, MIDI_49_HIGHEST } from '@/utils/pianoPositions';
 
 interface PianoKeyboardProps {
   activeLanes: MidiNote[];
@@ -16,26 +17,20 @@ const WHITE_KEY_HEIGHT = 80;
 const BLACK_KEY_HEIGHT = 50;
 
 /**
- * Fill in ALL chromatic notes between the active lanes' lowest and highest.
- * This adds the black keys between white keys so the piano looks realistic,
- * while keeping white key count = active white key count for alignment
- * with the equal-width game lanes in the Renderer.
+ * Build the full 49-key range (C2-C6) for MIDI keyboard display.
  */
-function computeFullPianoRange(activeLanes: MidiNote[]): MidiNote[] {
-  if (activeLanes.length === 0) return [];
-  const lowest = Math.min(...activeLanes);
-  const highest = Math.max(...activeLanes);
+function buildFullKeyboardRange(): MidiNote[] {
   const all: MidiNote[] = [];
-  for (let n = lowest; n <= highest; n++) {
+  for (let n = MIDI_49_LOWEST; n <= MIDI_49_HIGHEST; n++) {
     all.push(n);
   }
   return all;
 }
 
 export default function PianoKeyboard({ activeLanes, keyLabels, pressedNotes, hitLanes, isMidiMode }: PianoKeyboardProps) {
-  // In MIDI mode, always show a full piano keyboard with black and white keys
+  // In MIDI mode, show the full 49-key keyboard (1:1 with physical Axiom 49)
   if (isMidiMode) {
-    const fullRange = computeFullPianoRange(activeLanes);
+    const fullRange = buildFullKeyboardRange();
     const activeSet = new Set(activeLanes);
     return <PianoLayout
       allNotes={fullRange}

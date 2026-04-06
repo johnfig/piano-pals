@@ -3,6 +3,15 @@ import { getLaneColor, getLaneColorDim, HIT_RATING_COLORS, BG_COLOR, LANE_LINE_C
 import { midiNoteToName, isWhiteKey } from '@/constants/keyboard';
 import { HIT_ZONE_Y, HIT_EFFECT_DURATION } from '@/constants/timing';
 import { lerp } from '@/utils/math';
+import { PianoKeyPos } from '@/utils/pianoPositions';
+
+/** Per-lane position info used for all rendering */
+interface LanePos {
+  x: number;       // left edge, 0-1 fraction
+  width: number;   // 0-1 fraction
+  center: number;  // center x, 0-1 fraction
+  isBlack: boolean;
+}
 
 class Renderer {
   private canvas: HTMLCanvasElement;
@@ -14,6 +23,8 @@ class Renderer {
   // Dynamic lane configuration
   private laneCount = 8;
   private activeLanes: MidiNote[] = [];
+  private lanePositions: LanePos[] = [];
+  private pianoMode = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -21,9 +32,39 @@ class Renderer {
     this.resize();
   }
 
-  setLaneConfig(activeLanes: MidiNote[]): void {
+  /**
+   * Configure lanes. In piano mode, each lane is positioned at its
+   * piano-key x-coordinate. In keyboard mode, lanes are equal-width.
+   */
+  setLaneConfig(activeLanes: MidiNote[], pianoPositions?: Map<MidiNote, PianoKeyPos>): void {
     this.activeLanes = activeLanes;
     this.laneCount = activeLanes.length;
+    this.pianoMode = !!pianoPositions;
+
+    if (pianoPositions) {
+      this.lanePositions = activeLanes.map(note => {
+        const pos = pianoPositions.get(note);
+        if (pos) return { x: pos.x, width: pos.width, center: pos.center, isBlack: pos.isBlack };
+        // Fallback: equal-width
+        const w = 1 / activeLanes.length;
+        const i = activeLanes.indexOf(note);
+        return { x: i * w, width: w, center: i * w + w / 2, isBlack: false };
+      });
+    } else {
+      const w = 1 / activeLanes.length;
+      this.lanePositions = activeLanes.map((note, i) => ({
+        x: i * w,
+        width: w,
+        center: i * w + w / 2,
+        isBlack: !isWhiteKey(note),
+      }));
+    }
+  }
+
+  /** Get the pixel x-center of a lane (for external use in hit effects) */
+  getLaneCenterX(lane: number, canvasWidth: number): number {
+    if (lane < 0 || lane >= this.lanePositions.length) return canvasWidth / 2;
+    return this.lanePositions[lane].center * canvasWidth;
   }
 
   resize(): void {
@@ -124,46 +165,59 @@ class Renderer {
 
   private drawLanes(w: number, h: number): void {
     const ctx = this.ctx;
-    const lanes = this.laneCount;
-    const laneWidth = w / lanes;
 
-    // Shade black-key lanes darker so they're visually distinct
-    for (let i = 0; i < lanes; i++) {
-      if (!isWhiteKey(this.activeLanes[i])) {
+    // Shade black-key lanes darker
+    for (const pos of this.lanePositions) {
+      if (pos.isBlack) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-        ctx.fillRect(i * laneWidth, 0, laneWidth, h);
+        ctx.fillRect(pos.x * w, 0, pos.width * w, h);
       }
     }
 
+    // Lane divider lines — draw between adjacent lanes
     ctx.strokeStyle = LANE_LINE_COLOR;
     ctx.lineWidth = 1;
 
-    for (let i = 1; i < lanes; i++) {
-      const x = i * laneWidth;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
+    if (this.pianoMode) {
+      // In piano mode, draw dividers at each lane's left edge (skip first)
+      for (let i = 1; i < this.lanePositions.length; i++) {
+        const prev = this.lanePositions[i - 1];
+        const curr = this.lanePositions[i];
+        // Draw at the midpoint between previous lane's right edge and current lane's left edge
+        const divX = ((prev.x + prev.width) + curr.x) / 2 * w;
+        ctx.beginPath();
+        ctx.moveTo(divX, 0);
+        ctx.lineTo(divX, h);
+        ctx.stroke();
+      }
+    } else {
+      for (let i = 1; i < this.laneCount; i++) {
+        const x = this.lanePositions[i].x * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
     }
 
-    // Draw lane glow at bottom (subtle)
-    for (let i = 0; i < lanes; i++) {
-      const x = i * laneWidth + laneWidth / 2;
+    // Draw lane glow at hit zone (subtle)
+    for (let i = 0; i < this.lanePositions.length; i++) {
+      const pos = this.lanePositions[i];
+      const cx = pos.center * w;
       const y = h * HIT_ZONE_Y;
+      const radius = pos.width * w * 0.6;
 
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, laneWidth * 0.6);
+      const gradient = ctx.createRadialGradient(cx, y, 0, cx, y, radius);
       gradient.addColorStop(0, getLaneColorDim(i));
       gradient.addColorStop(1, 'transparent');
       ctx.fillStyle = gradient;
-      ctx.fillRect(i * laneWidth, y - laneWidth * 0.3, laneWidth, laneWidth * 0.6);
+      ctx.fillRect(pos.x * w, y - radius * 0.5, pos.width * w, radius);
     }
   }
 
   private drawHitZone(w: number, h: number, pressedLanes: Set<number>): void {
     const ctx = this.ctx;
     const y = h * HIT_ZONE_Y;
-    const lanes = this.laneCount;
-    const laneWidth = w / lanes;
 
     // Base hit zone line
     ctx.fillStyle = HIT_ZONE_COLOR;
@@ -171,30 +225,34 @@ class Renderer {
 
     // Pressed lane highlights
     for (const lane of pressedLanes) {
+      if (lane < 0 || lane >= this.lanePositions.length) continue;
+      const pos = this.lanePositions[lane];
       const color = getLaneColor(lane);
-      const x = lane * laneWidth;
+      const lx = pos.x * w;
+      const lw = pos.width * w;
 
       ctx.save();
       ctx.shadowColor = color;
       ctx.shadowBlur = 20;
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.4;
-      ctx.fillRect(x, y - 15, laneWidth, 30);
+      ctx.fillRect(lx, y - 15, lw, 30);
       ctx.globalAlpha = 1;
       ctx.restore();
     }
   }
 
   private drawNote(note: ActiveNote, w: number, h: number, crescendoActive: boolean): void {
+    if (note.lane < 0 || note.lane >= this.lanePositions.length) return;
+
     const ctx = this.ctx;
-    const lanes = this.laneCount;
-    const laneWidth = w / lanes;
-    // Black-key notes are narrower to match piano visual
-    const isBlack = note.lane < this.activeLanes.length && !isWhiteKey(this.activeLanes[note.lane]);
-    const noteWidth = laneWidth * (isBlack ? 0.55 : 0.7);
+    const pos = this.lanePositions[note.lane];
+    const laneX = pos.x * w;
+    const laneW = pos.width * w;
+    const noteWidth = laneW * (pos.isBlack ? 0.75 : 0.7);
     const color = crescendoActive ? CRESCENDO_COLOR : getLaneColor(note.lane);
 
-    const x = note.lane * laneWidth + (laneWidth - noteWidth) / 2;
+    const x = laneX + (laneW - noteWidth) / 2;
     const noteHeight = Math.max(note.height * h * HIT_ZONE_Y * 0.3, 20);
     const y = note.y * h * HIT_ZONE_Y - noteHeight;
 
