@@ -528,7 +528,7 @@ export default function Game() {
             keyLabels={keyLabels}
             pressedNotes={pressedNotes}
             hitLanes={hitLanes}
-            isMidiMode={resolvedSong?.isMidiMode ?? false}
+            isMidiMode={midiConnected}
           />
         </>
       )}
