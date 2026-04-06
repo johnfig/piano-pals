@@ -1,6 +1,6 @@
 import { ActiveNote, Particle, HitEffect, MidiNote } from '@/types/game';
 import { getLaneColor, getLaneColorDim, HIT_RATING_COLORS, BG_COLOR, LANE_LINE_COLOR, HIT_ZONE_COLOR, CRESCENDO_COLOR } from '@/constants/colors';
-import { midiNoteToName } from '@/constants/keyboard';
+import { midiNoteToName, isWhiteKey } from '@/constants/keyboard';
 import { HIT_ZONE_Y, HIT_EFFECT_DURATION } from '@/constants/timing';
 import { lerp } from '@/utils/math';
 
@@ -127,6 +127,14 @@ class Renderer {
     const lanes = this.laneCount;
     const laneWidth = w / lanes;
 
+    // Shade black-key lanes darker so they're visually distinct
+    for (let i = 0; i < lanes; i++) {
+      if (!isWhiteKey(this.activeLanes[i])) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillRect(i * laneWidth, 0, laneWidth, h);
+      }
+    }
+
     ctx.strokeStyle = LANE_LINE_COLOR;
     ctx.lineWidth = 1;
 
@@ -181,7 +189,9 @@ class Renderer {
     const ctx = this.ctx;
     const lanes = this.laneCount;
     const laneWidth = w / lanes;
-    const noteWidth = laneWidth * 0.7;
+    // Black-key notes are narrower to match piano visual
+    const isBlack = note.lane < this.activeLanes.length && !isWhiteKey(this.activeLanes[note.lane]);
+    const noteWidth = laneWidth * (isBlack ? 0.55 : 0.7);
     const color = crescendoActive ? CRESCENDO_COLOR : getLaneColor(note.lane);
 
     const x = note.lane * laneWidth + (laneWidth - noteWidth) / 2;

@@ -456,6 +456,7 @@ export default function Game() {
 
       if (noteManager.isComplete(currentTime)) {
         input.stop();
+        audioRef.current?.stopAllNotes();
 
         if (currentSong) {
           if (isPracticeMode) {

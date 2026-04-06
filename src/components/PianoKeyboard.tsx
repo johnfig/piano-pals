@@ -16,36 +16,17 @@ const WHITE_KEY_HEIGHT = 80;
 const BLACK_KEY_HEIGHT = 50;
 
 /**
- * Expand the piano range to show 2-3 full octaves, centered on the song's notes.
- * Aligns to C/B boundaries for clean octave groups.
+ * Fill in ALL chromatic notes between the active lanes' lowest and highest.
+ * This adds the black keys between white keys so the piano looks realistic,
+ * while keeping white key count = active white key count for alignment
+ * with the equal-width game lanes in the Renderer.
  */
 function computeFullPianoRange(activeLanes: MidiNote[]): MidiNote[] {
   if (activeLanes.length === 0) return [];
   const lowest = Math.min(...activeLanes);
   const highest = Math.max(...activeLanes);
-
-  const currentSpan = highest - lowest;
-  // At least 2.5 octaves (30 semitones), pad by at least 1 octave beyond song range
-  const targetSpan = Math.max(30, currentSpan + 12);
-  const padding = targetSpan - currentSpan;
-
-  // Pad slightly more on the right (treble) side
-  const padLeft = Math.floor(padding * 0.4);
-  const padRight = padding - padLeft;
-
-  let start = lowest - padLeft;
-  let end = highest + padRight;
-
-  // Align to C (start) and B (end) for clean octave groups
-  start = Math.floor(start / 12) * 12;
-  end = Math.ceil((end + 1) / 12) * 12 - 1;
-
-  // Clamp to reasonable MIDI range (C2=36 to B6=95)
-  start = Math.max(36, start);
-  end = Math.min(95, end);
-
   const all: MidiNote[] = [];
-  for (let n = start; n <= end; n++) {
+  for (let n = lowest; n <= highest; n++) {
     all.push(n);
   }
   return all;
@@ -282,7 +263,7 @@ function PianoLayout({
         const lane = activeLanes.indexOf(midiNote);
         const isPressed = pressedNotes.has(midiNote);
         const isHit = lane >= 0 && hitLanes.has(lane);
-        const color = lane >= 0 ? getLaneColor(lane) : '#888';
+        const color = lane >= 0 ? getLaneColor(lane) : (isPressed ? '#aaa' : '#888');
         const label = keyLabels.get(midiNote) ?? '';
         const noteName = midiNoteToName(midiNote);
         const pos = keyPositions.get(midiNote);
