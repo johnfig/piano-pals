@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(/usr/local/bin/npx tsc:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\")",
+      "Bash(npx next:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(/opt/homebrew/bin/npx tsc:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/opt/homebrew/Cellar/node/25.6.1/bin:/usr/local/bin:/usr/bin:/bin\")"
+    ]
+  }
+}

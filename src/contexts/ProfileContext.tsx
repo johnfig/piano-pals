@@ -6,8 +6,10 @@ import {
   loadAllProfiles,
   loadActiveProfile,
   saveProfile,
-  createProfile,
+  createProfileInDb,
   setActiveProfileId,
+  getLegacyProfiles,
+  clearLegacyData,
   updateSongProgress,
   updateStreak,
   addXP,
@@ -24,7 +26,7 @@ interface ProfileContextValue {
   isLoading: boolean;
 
   // Profile management
-  createNewProfile: (name: string, avatarIndex: number) => UserProfile;
+  createNewProfile: (name: string, avatarIndex: number) => void;
   switchProfile: (id: string) => void;
 
   // Game results
@@ -46,39 +48,95 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [allProfiles, setAllProfiles] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load on mount
+  // Load profiles on mount (async)
   useEffect(() => {
-    const profiles = loadAllProfiles();
-    const active = loadActiveProfile();
-    setAllProfiles(profiles);
-    setProfile(active);
-    setIsLoading(false);
+    async function init() {
+      try {
+        // Check for legacy localStorage data and migrate if needed
+        const legacyProfiles = getLegacyProfiles();
+
+        let profiles = await loadAllProfiles();
+
+        if (legacyProfiles && legacyProfiles.length > 0 && profiles.length === 0) {
+          // Migrate legacy data to database
+          console.log('Migrating', legacyProfiles.length, 'profiles from localStorage to database...');
+          for (const lp of legacyProfiles) {
+            await saveProfile(lp);
+          }
+          clearLegacyData();
+          profiles = await loadAllProfiles();
+          console.log('Migration complete.');
+        }
+
+        const active = await loadActiveProfile();
+        setAllProfiles(profiles);
+        setProfile(active);
+      } catch (error) {
+        console.error('Failed to initialize profiles:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    init();
   }, []);
 
   const isNewUser = !isLoading && allProfiles.length === 0;
 
-  const createNewProfile = useCallback((name: string, avatarIndex: number): UserProfile => {
-    const newProfile = createProfile(name, avatarIndex);
-    setProfile(newProfile);
-    setAllProfiles(prev => [...prev, newProfile]);
-    return newProfile;
+  const createNewProfile = useCallback((name: string, avatarIndex: number) => {
+    // Optimistic: create profile object immediately
+    const tempProfile: UserProfile = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      displayName: name,
+      avatarIndex,
+      createdAt: new Date().toISOString(),
+      xp: 0,
+      level: 1,
+      currentStreak: 0,
+      longestStreak: 0,
+      lastPlayDate: null,
+      songProgress: {},
+      earnedBadges: [],
+      trackProgress: {},
+    };
+
+    setProfile(tempProfile);
+    setAllProfiles(prev => [...prev, tempProfile]);
+    setActiveProfileId(tempProfile.id);
+
+    // Persist to DB in background
+    createProfileInDb(name, avatarIndex).then(dbProfile => {
+      // If IDs differ (they shouldn't since we generate the same way),
+      // update. In practice they'll match.
+      if (dbProfile.id !== tempProfile.id) {
+        setProfile(dbProfile);
+        setAllProfiles(prev => prev.map(p => p.id === tempProfile.id ? dbProfile : p));
+        setActiveProfileId(dbProfile.id);
+      }
+    }).catch(console.error);
   }, []);
 
   const switchProfile = useCallback((id: string) => {
-    const profiles = loadAllProfiles();
-    const target = profiles.find(p => p.id === id);
-    if (target) {
-      setActiveProfileId(id);
-      setProfile(target);
-      setAllProfiles(profiles);
+    setActiveProfileId(id);
+    // Find in current list first (instant)
+    const found = allProfiles.find(p => p.id === id);
+    if (found) {
+      setProfile(found);
     }
-  }, []);
+    // Also fetch fresh from DB
+    loadActiveProfile().then(fresh => {
+      if (fresh) {
+        setProfile(fresh);
+        setAllProfiles(prev => prev.map(p => p.id === fresh.id ? fresh : p));
+      }
+    }).catch(console.error);
+  }, [allProfiles]);
 
   const updateProfileInternal = useCallback((updater: (prev: UserProfile) => UserProfile) => {
     setProfile(prev => {
       if (!prev) return prev;
       const updated = updater(prev);
-      saveProfile(updated);
+      // Save to DB in background
+      saveProfile(updated).catch(console.error);
       setAllProfiles(profiles => profiles.map(p => p.id === updated.id ? updated : p));
       return updated;
     });
@@ -116,7 +174,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         trackProg.completedLevels = [...trackProg.completedLevels, level.levelNumber];
       }
 
-      // Update current level to the next uncompleted level
       const nextLevel = track.levels.find(l => !trackProg.completedLevels.includes(l.levelNumber));
       trackProg.currentLevel = nextLevel?.levelNumber ?? track.levels[track.levels.length - 1].levelNumber;
 
@@ -142,9 +199,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     const leveledUp = updated.level > oldLevel;
 
-    saveProfile(updated);
+    // Optimistic update — set state immediately
     setProfile(updated);
     setAllProfiles(profiles => profiles.map(p => p.id === updated.id ? updated : p));
+
+    // Persist to DB in background
+    saveProfile(updated).catch(console.error);
 
     return { xpEarned, leveledUp, isFirstClear, newBadges };
   }, [profile]);

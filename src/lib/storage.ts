@@ -1,64 +1,46 @@
 import { UserProfile, SongProgress, GameStats, Grade } from '@/types/game';
 
-const PROFILES_KEY = 'piano-hero-profiles';
 const ACTIVE_PROFILE_KEY = 'piano-hero-active-profile';
+const LEGACY_PROFILES_KEY = 'piano-hero-profiles';
 
-// --- Profile CRUD ---
+// --- API-backed Profile CRUD ---
 
-export function loadAllProfiles(): UserProfile[] {
-  if (typeof window === 'undefined') return [];
+export async function loadAllProfiles(): Promise<UserProfile[]> {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+    const res = await fetch('/api/profiles');
+    if (!res.ok) throw new Error('Failed to fetch profiles');
+    return await res.json();
+  } catch (error) {
+    console.error('loadAllProfiles error:', error);
     return [];
   }
 }
 
-export function saveAllProfiles(profiles: UserProfile[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
-}
-
-export function getActiveProfileId(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACTIVE_PROFILE_KEY);
-}
-
-export function setActiveProfileId(id: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(ACTIVE_PROFILE_KEY, id);
-}
-
-export function loadActiveProfile(): UserProfile | null {
+export async function loadActiveProfile(): Promise<UserProfile | null> {
   const id = getActiveProfileId();
   if (!id) return null;
-  const profiles = loadAllProfiles();
-  return profiles.find(p => p.id === id) ?? null;
-}
-
-export function saveProfile(profile: UserProfile): void {
-  const profiles = loadAllProfiles();
-  const index = profiles.findIndex(p => p.id === profile.id);
-  if (index >= 0) {
-    profiles[index] = profile;
-  } else {
-    profiles.push(profile);
-  }
-  saveAllProfiles(profiles);
-}
-
-export function deleteProfile(id: string): void {
-  const profiles = loadAllProfiles().filter(p => p.id !== id);
-  saveAllProfiles(profiles);
-  if (getActiveProfileId() === id) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(ACTIVE_PROFILE_KEY);
-    }
+  try {
+    const res = await fetch(`/api/profiles/${id}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
   }
 }
 
-export function createProfile(displayName: string, avatarIndex: number): UserProfile {
+export async function saveProfile(profile: UserProfile): Promise<void> {
+  try {
+    await fetch(`/api/profiles/${profile.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile),
+    });
+  } catch (error) {
+    console.error('saveProfile error:', error);
+  }
+}
+
+export async function createProfileInDb(displayName: string, avatarIndex: number): Promise<UserProfile> {
   const profile: UserProfile = {
     id: generateId(),
     displayName,
@@ -73,12 +55,65 @@ export function createProfile(displayName: string, avatarIndex: number): UserPro
     earnedBadges: [],
     trackProgress: {},
   };
-  saveProfile(profile);
+
+  try {
+    await fetch('/api/profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profile),
+    });
+  } catch (error) {
+    console.error('createProfileInDb error:', error);
+  }
+
   setActiveProfileId(profile.id);
   return profile;
 }
 
-// --- Song Progress ---
+export async function deleteProfile(id: string): Promise<void> {
+  try {
+    await fetch(`/api/profiles/${id}`, { method: 'DELETE' });
+  } catch (error) {
+    console.error('deleteProfile error:', error);
+  }
+  if (getActiveProfileId() === id) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(ACTIVE_PROFILE_KEY);
+    }
+  }
+}
+
+// --- Active Profile ID (stays in localStorage — per-device preference) ---
+
+export function getActiveProfileId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_PROFILE_KEY);
+}
+
+export function setActiveProfileId(id: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ACTIVE_PROFILE_KEY, id);
+}
+
+// --- Legacy localStorage Migration ---
+
+export function getLegacyProfiles(): UserProfile[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LEGACY_PROFILES_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function clearLegacyData(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(LEGACY_PROFILES_KEY);
+}
+
+// --- Pure Computation Functions (unchanged) ---
 
 export function gradeToStars(grade: Grade): number {
   switch (grade) {
@@ -145,14 +180,11 @@ export function updateSongProgress(
   };
 }
 
-// --- Streak ---
-
 export function updateStreak(profile: UserProfile): UserProfile {
   const today = getTodayDate();
   const lastPlay = profile.lastPlayDate;
 
   if (lastPlay === today) {
-    // Already played today, no streak change
     return profile;
   }
 
@@ -160,10 +192,8 @@ export function updateStreak(profile: UserProfile): UserProfile {
 
   let newStreak: number;
   if (lastPlay === yesterday) {
-    // Consecutive day — extend streak
     newStreak = profile.currentStreak + 1;
   } else {
-    // Streak broken — start at 1
     newStreak = 1;
   }
 
@@ -174,8 +204,6 @@ export function updateStreak(profile: UserProfile): UserProfile {
     lastPlayDate: today,
   };
 }
-
-// --- XP ---
 
 export function addXP(profile: UserProfile, amount: number): UserProfile {
   const newXP = profile.xp + amount;
