@@ -11,9 +11,9 @@ export interface PianoKeyPos {
   isBlack: boolean;
 }
 
-// Standard 49-key MIDI keyboard range (Axiom 49, etc.)
-export const MIDI_49_LOWEST: MidiNote = 36;  // C2
-export const MIDI_49_HIGHEST: MidiNote = 84; // C6
+// Standard 49-key MIDI keyboard range (M-Audio Axiom 49 default)
+export const MIDI_49_LOWEST: MidiNote = 24;  // C1
+export const MIDI_49_HIGHEST: MidiNote = 72; // C5
 
 /**
  * Compute x-positions for every key in a MIDI range, using real piano layout:

@@ -176,7 +176,8 @@ function PianoLayout({
         const lane = activeLanes.indexOf(midiNote);
         const isPressed = pressedNotes.has(midiNote);
         const isHit = lane >= 0 && hitLanes.has(lane);
-        const color = lane >= 0 ? getLaneColor(lane) : '#888';
+        // Use 6-char hex so appending alpha (e.g. "60") produces valid 8-char CSS hex
+        const color = lane >= 0 ? getLaneColor(lane) : '#888888';
         const label = keyLabels.get(midiNote) ?? '';
         const noteName = midiNoteToName(midiNote);
         const pos = keyPositions.get(midiNote);
@@ -192,33 +193,51 @@ function PianoLayout({
               left: `${pos.x}%`,
               width: `${pos.width}%`,
               height: WHITE_KEY_HEIGHT,
-              overflow: 'hidden', // Contain glow effects within key bounds
             }}
           >
+            {/* White key background — only the LOWER portion (below black key zone) shows highlight */}
             <div
               className="absolute inset-0 transition-colors duration-75"
               style={{
-                background: isPressed
-                  ? `linear-gradient(to bottom, ${color}60, ${color}35)`
-                  : isHit
-                    ? `linear-gradient(to bottom, ${color}25, ${color}15)`
-                    : isActive
-                      ? 'linear-gradient(to bottom, #f0f0f0, #d8d8d8)'
-                      : 'linear-gradient(to bottom, #c8c8c8, #b0b0b0)',
+                background: isActive
+                  ? 'linear-gradient(to bottom, #e8e8e8, #f0f0f0, #d8d8d8)'
+                  : 'linear-gradient(to bottom, #c0c0c0, #c8c8c8, #b0b0b0)',
                 borderLeft: '1px solid rgba(0,0,0,0.12)',
                 borderRight: '1px solid rgba(0,0,0,0.12)',
                 borderBottom: '4px solid rgba(0,0,0,0.15)',
                 borderRadius: '0 0 5px 5px',
-                boxShadow: isPressed
-                  ? `inset 0 0 15px ${color}50, inset 0 2px 10px rgba(0,0,0,0.15)`
-                  : 'inset 0 -3px 6px rgba(0,0,0,0.06)',
+                boxShadow: 'inset 0 -3px 6px rgba(0,0,0,0.06)',
                 opacity: isActive ? 1 : 0.5,
               }}
             />
+            {/* Pressed highlight — only in the LOWER section (below black keys) */}
             {isPressed && (
               <div
-                className="absolute top-0 left-0 right-0 h-1.5 rounded-b"
-                style={{ backgroundColor: color }}
+                className="absolute left-0 right-0 transition-colors duration-75"
+                style={{
+                  top: BLACK_KEY_HEIGHT,
+                  bottom: 0,
+                  background: `linear-gradient(to bottom, ${color}50, ${color}30)`,
+                  borderRadius: '0 0 5px 5px',
+                }}
+              />
+            )}
+            {isHit && !isPressed && (
+              <div
+                className="absolute left-0 right-0"
+                style={{
+                  top: BLACK_KEY_HEIGHT,
+                  bottom: 0,
+                  background: `linear-gradient(to bottom, ${color}20, ${color}10)`,
+                  borderRadius: '0 0 5px 5px',
+                }}
+              />
+            )}
+            {/* Pressed bottom-edge indicator */}
+            {isPressed && (
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-t"
+                style={{ height: 3, backgroundColor: color }}
               />
             )}
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
@@ -230,7 +249,6 @@ function PianoLayout({
                   {label}
                 </span>
               )}
-              {/* Octave label on every C key */}
               {isC && (
                 <span
                   className="text-[8px] font-semibold mt-0.5"
@@ -258,7 +276,8 @@ function PianoLayout({
         const lane = activeLanes.indexOf(midiNote);
         const isPressed = pressedNotes.has(midiNote);
         const isHit = lane >= 0 && hitLanes.has(lane);
-        const color = lane >= 0 ? getLaneColor(lane) : (isPressed ? '#aaa' : '#888');
+        // Use 6-char hex so appending alpha produces valid CSS
+        const color = lane >= 0 ? getLaneColor(lane) : (isPressed ? '#aaaaaa' : '#888888');
         const label = keyLabels.get(midiNote) ?? '';
         const noteName = midiNoteToName(midiNote);
         const pos = keyPositions.get(midiNote);
@@ -272,31 +291,30 @@ function PianoLayout({
               left: `${pos.x}%`,
               width: `${pos.width}%`,
               height: BLACK_KEY_HEIGHT,
-              overflow: 'hidden', // Contain glow effects
             }}
           >
             <div
               className="absolute inset-0 transition-colors duration-75"
               style={{
                 background: isPressed
-                  ? `linear-gradient(to bottom, ${color}70, ${color}40)`
+                  ? `linear-gradient(to bottom, ${color}90, ${color}50)`
                   : isHit
                     ? `linear-gradient(to bottom, ${color}30, ${color}20)`
                     : 'linear-gradient(to bottom, #2a2a2a, #1a1a1a)',
-                borderLeft: '1px solid rgba(0,0,0,0.3)',
-                borderRight: '1px solid rgba(0,0,0,0.3)',
-                borderBottom: '3px solid rgba(0,0,0,0.6)',
+                borderLeft: '1px solid rgba(0,0,0,0.4)',
+                borderRight: '1px solid rgba(0,0,0,0.4)',
+                borderBottom: '3px solid rgba(0,0,0,0.7)',
                 borderRadius: '0 0 4px 4px',
                 boxShadow: isPressed
-                  ? `inset 0 0 12px ${color}50, inset 0 2px 8px rgba(0,0,0,0.4)`
+                  ? `0 0 8px ${color}60`
                   : '0 3px 8px rgba(0,0,0,0.6), inset 0 -2px 4px rgba(0,0,0,0.3)',
-                opacity: isActive ? 1 : 0.4,
+                opacity: isActive ? 1 : (isPressed ? 0.9 : 0.4),
               }}
             />
             {isPressed && (
               <div
-                className="absolute top-0 left-0 right-0 h-1.5 rounded-b"
-                style={{ backgroundColor: color }}
+                className="absolute bottom-1 left-1 right-1 rounded"
+                style={{ height: 2, backgroundColor: color }}
               />
             )}
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-1.5 pointer-events-none">
