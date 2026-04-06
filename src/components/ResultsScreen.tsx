@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { GameStats, Grade, Song, UserProfile } from '@/types/game';
 import { gradeToStars, xpToNextLevel } from '@/lib/storage';
+import { getBadge } from '@/data/badges';
 
 interface ResultsScreenProps {
   song: Song;
@@ -11,9 +12,11 @@ interface ResultsScreenProps {
   xpEarned: number;
   leveledUp: boolean;
   isFirstClear: boolean;
+  newBadges: string[];
   profile: UserProfile | null;
   onReplay: () => void;
   onMenu: () => void;
+  onNextLevel?: () => void;
 }
 
 const gradeColors: Record<Grade, string> = {
@@ -41,9 +44,11 @@ export default function ResultsScreen({
   xpEarned,
   leveledUp,
   isFirstClear,
+  newBadges,
   profile,
   onReplay,
   onMenu,
+  onNextLevel,
 }: ResultsScreenProps) {
   const accuracy = stats.totalNotes > 0
     ? ((stats.perfect + stats.great + stats.good) / stats.totalNotes * 100).toFixed(1)
@@ -53,26 +58,33 @@ export default function ResultsScreen({
   const [animatedStars, setAnimatedStars] = useState(0);
   const [showXP, setShowXP] = useState(false);
   const [showLevelUp, setShowLevelUp] = useState(false);
+  const [showBadges, setShowBadges] = useState(false);
 
-  // Animate stars appearing
+  // Animate stars appearing, then XP, then level up, then badges
   useEffect(() => {
-    if (stars === 0) return;
     const timers: NodeJS.Timeout[] = [];
-    for (let i = 1; i <= stars; i++) {
-      timers.push(setTimeout(() => setAnimatedStars(i), i * 300));
+    if (stars > 0) {
+      for (let i = 1; i <= stars; i++) {
+        timers.push(setTimeout(() => setAnimatedStars(i), i * 300));
+      }
     }
-    timers.push(setTimeout(() => setShowXP(true), stars * 300 + 400));
+    const xpDelay = stars > 0 ? stars * 300 + 400 : 400;
+    timers.push(setTimeout(() => setShowXP(true), xpDelay));
     if (leveledUp) {
-      timers.push(setTimeout(() => setShowLevelUp(true), stars * 300 + 800));
+      timers.push(setTimeout(() => setShowLevelUp(true), xpDelay + 400));
+    }
+    if (newBadges.length > 0) {
+      const badgeDelay = xpDelay + (leveledUp ? 800 : 400);
+      timers.push(setTimeout(() => setShowBadges(true), badgeDelay));
     }
     return () => timers.forEach(clearTimeout);
-  }, [stars, leveledUp]);
+  }, [stars, leveledUp, newBadges.length]);
 
   const xpProgress = profile ? xpToNextLevel(profile) : null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0a0a1a] z-50 overflow-y-auto py-8">
-      <div className="text-center space-y-6 max-w-md w-full px-4">
+      <div className="text-center space-y-5 max-w-md w-full px-4">
         {/* Song info */}
         <div>
           <p className="text-gray-500 text-sm uppercase tracking-wider">Results</p>
@@ -156,6 +168,29 @@ export default function ResultsScreen({
           </div>
         )}
 
+        {/* Badges earned */}
+        {showBadges && newBadges.length > 0 && (
+          <div className="animate-fade-in space-y-2">
+            {newBadges.map(badgeId => {
+              const badge = getBadge(badgeId);
+              if (!badge) return null;
+              return (
+                <div
+                  key={badgeId}
+                  className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 animate-bounce-in"
+                >
+                  <span className="text-3xl">{badge.icon}</span>
+                  <div className="text-left">
+                    <p className="text-amber-300 font-bold text-sm">Badge Earned!</p>
+                    <p className="text-white font-semibold">{badge.name}</p>
+                    <p className="text-gray-400 text-xs">{badge.description}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatBox label="Perfect" value={stats.perfect} color="text-yellow-400" />
@@ -179,17 +214,29 @@ export default function ResultsScreen({
 
         {/* Actions */}
         <div className="flex gap-3 justify-center pt-2">
+          {onNextLevel && grade !== 'F' && (
+            <button
+              onClick={onNextLevel}
+              className="py-3 px-8 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
+            >
+              Next Level →
+            </button>
+          )}
           <button
             onClick={onReplay}
-            className="py-3 px-8 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
+            className={`py-3 px-8 rounded-xl text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform ${
+              onNextLevel && grade !== 'F'
+                ? 'border border-white/20 bg-white/5'
+                : 'bg-gradient-to-r from-pink-500 to-purple-500'
+            }`}
           >
             Play Again
           </button>
           <button
             onClick={onMenu}
-            className="py-3 px-8 rounded-xl border border-white/20 text-gray-400 font-semibold hover:text-white hover:border-white/40 transition-colors"
+            className="py-3 px-6 rounded-xl border border-white/20 text-gray-400 font-semibold hover:text-white hover:border-white/40 transition-colors"
           >
-            Menu
+            {onNextLevel ? 'Map' : 'Menu'}
           </button>
         </div>
       </div>

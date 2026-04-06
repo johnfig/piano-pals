@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GameState, Song, MidiNote, ActiveNote, Particle, HitEffect } from '@/types/game';
 import { Track } from '@/types/tracks';
+import { getSong } from '@/data/songRegistry';
 import { getActiveLanes, buildNoteToLane, buildKeyboardMap, buildKeyLabels, DEFAULT_ACTIVE_LANES, DEFAULT_KEY_LABELS } from '@/constants/keyboard';
 import { getLaneColor } from '@/constants/colors';
 import { FALL_DURATION } from '@/constants/timing';
@@ -41,6 +42,7 @@ export default function Game() {
     xpEarned: number;
     leveledUp: boolean;
     isFirstClear: boolean;
+    newBadges: string[];
   } | null>(null);
 
   // Render state (updated every frame)
@@ -281,6 +283,29 @@ export default function Game() {
     }
   }, [currentSong]);
 
+  const handleNextLevel = useCallback(() => {
+    if (!currentTrack || !currentSong) return;
+    // Find the current level and the next one
+    const currentLevel = currentTrack.levels.find(l => l.songId === currentSong.id);
+    if (!currentLevel) return;
+    const nextLevel = currentTrack.levels.find(l => l.levelNumber === currentLevel.levelNumber + 1);
+    if (!nextLevel) {
+      // No more levels, go back to track map
+      setGameState('TRACK_MAP');
+      setCurrentSong(null);
+      return;
+    }
+    const nextSong = getSong(nextLevel.songId);
+    if (nextSong) {
+      initAudio();
+      setCurrentSong(nextSong);
+      setGameState('COUNTDOWN');
+    } else {
+      setGameState('TRACK_MAP');
+      setCurrentSong(null);
+    }
+  }, [currentTrack, currentSong, initAudio]);
+
   // Main game loop
   useEffect(() => {
     if (gameState !== 'PLAYING') {
@@ -500,9 +525,11 @@ export default function Game() {
           xpEarned={lastResultData?.xpEarned ?? 0}
           leveledUp={lastResultData?.leveledUp ?? false}
           isFirstClear={lastResultData?.isFirstClear ?? false}
+          newBadges={lastResultData?.newBadges ?? []}
           profile={profile}
           onReplay={handleReplay}
           onMenu={handleQuit}
+          onNextLevel={currentTrack ? handleNextLevel : undefined}
         />
       )}
     </div>
