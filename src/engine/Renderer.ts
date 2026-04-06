@@ -309,7 +309,7 @@ class Renderer {
     ctx.shadowColor = particle.color;
     ctx.shadowBlur = 5;
     ctx.beginPath();
-    ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+    ctx.arc(particle.x, particle.y, Math.max(0.1, particle.size * alpha), 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
