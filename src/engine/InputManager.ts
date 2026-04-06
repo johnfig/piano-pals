@@ -119,16 +119,17 @@ class InputManager {
 
   private handleMidiNoteOn(midiNote: MidiNote): void {
     this.pressedMidiNotes.add(midiNote);
-    const lane = this.noteToLane.get(midiNote);
-    if (lane !== undefined && this.onKeyDownCallback) {
+    // Always fire for MIDI — lane -1 means "not a game lane" (sound only)
+    const lane = this.noteToLane.get(midiNote) ?? -1;
+    if (this.onKeyDownCallback) {
       this.onKeyDownCallback(midiNote, lane);
     }
   }
 
   private handleMidiNoteOff(midiNote: MidiNote): void {
     this.pressedMidiNotes.delete(midiNote);
-    const lane = this.noteToLane.get(midiNote);
-    if (lane !== undefined && this.onKeyUpCallback) {
+    const lane = this.noteToLane.get(midiNote) ?? -1;
+    if (this.onKeyUpCallback) {
       this.onKeyUpCallback(midiNote, lane);
     }
   }

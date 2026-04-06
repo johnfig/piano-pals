@@ -112,14 +112,14 @@ export default function Game() {
   }, [activeLanes]);
 
   const keyLabels = useMemo(() => {
-    if (!resolvedSong) return DEFAULT_KEY_LABELS;
-    if (resolvedSong.isMidiMode) {
+    if (midiConnected) {
       // No keyboard labels in MIDI mode — user looks at physical keyboard
       return new Map<MidiNote, string>();
     }
+    if (!resolvedSong) return DEFAULT_KEY_LABELS;
     const keyMap = buildKeyboardMap(activeLanes);
     return buildKeyLabels(keyMap);
-  }, [resolvedSong, activeLanes]);
+  }, [midiConnected, resolvedSong, activeLanes]);
 
   // Determine initial screen based on profile state
   useEffect(() => {
@@ -247,7 +247,11 @@ export default function Game() {
 
     if (!audio || !noteManager || !scoreManager || !particleSys || !effectsMgr) return;
 
+    // Always play sound, even for non-lane MIDI notes
     audio.startNote(midiNote);
+
+    // lane -1 = MIDI note not in game lanes (sound only, no hit check)
+    if (lane < 0) return;
 
     const realElapsed = performance.now() / 1000 - gameStartTimeRef.current - totalPausedRef.current;
     const currentTime = realElapsed * speedMultiplier;
@@ -377,7 +381,7 @@ export default function Game() {
 
     const input = inputRef.current;
     input.onKeyDown = handleNotePress;
-    input.onKeyUp = (midiNote: MidiNote) => {
+    input.onKeyUp = (midiNote: MidiNote, lane: number) => {
       // Release the sustained note sound
       audioRef.current?.stopNote(midiNote);
 
@@ -386,18 +390,21 @@ export default function Game() {
         next.delete(midiNote);
         return next;
       });
-      setPressedLanes((prev) => {
-        const next = new Set(prev);
-        const lane = noteToLane.get(midiNote);
-        if (lane !== undefined) next.delete(lane);
-        return next;
-      });
+      if (lane >= 0) {
+        setPressedLanes((prev) => {
+          const next = new Set(prev);
+          next.delete(lane);
+          return next;
+        });
+      }
     };
 
     const originalHandler = handleNotePress;
     input.onKeyDown = (midiNote: MidiNote, lane: number) => {
       setPressedNotes((prev) => new Set(prev).add(midiNote));
-      setPressedLanes((prev) => new Set(prev).add(lane));
+      if (lane >= 0) {
+        setPressedLanes((prev) => new Set(prev).add(lane));
+      }
       originalHandler(midiNote, lane);
     };
 

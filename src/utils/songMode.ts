@@ -10,6 +10,7 @@ export interface ResolvedSongData {
  * Resolve which note set to use based on MIDI connection status.
  * When MIDI is connected and pianoNotes exist, use the authentic version.
  * Otherwise fall back to the simplified keyboard version.
+ * isMidiMode is true whenever MIDI is connected (controls visuals & labels).
  */
 export function resolveSongData(
   song: Song,
@@ -19,6 +20,6 @@ export function resolveSongData(
   return {
     notes: usePiano ? song.pianoNotes! : song.notes,
     noteRange: usePiano ? (song.pianoNoteRange ?? song.noteRange) : song.noteRange,
-    isMidiMode: usePiano,
+    isMidiMode: midiConnected,
   };
 }

@@ -16,15 +16,36 @@ const WHITE_KEY_HEIGHT = 80;
 const BLACK_KEY_HEIGHT = 50;
 
 /**
- * Compute ALL chromatic notes in a range, filling in missing black keys
- * between white keys for a complete piano visual.
+ * Expand the piano range to show 2-3 full octaves, centered on the song's notes.
+ * Aligns to C/B boundaries for clean octave groups.
  */
 function computeFullPianoRange(activeLanes: MidiNote[]): MidiNote[] {
   if (activeLanes.length === 0) return [];
   const lowest = Math.min(...activeLanes);
   const highest = Math.max(...activeLanes);
+
+  const currentSpan = highest - lowest;
+  // At least 2.5 octaves (30 semitones), pad by at least 1 octave beyond song range
+  const targetSpan = Math.max(30, currentSpan + 12);
+  const padding = targetSpan - currentSpan;
+
+  // Pad slightly more on the right (treble) side
+  const padLeft = Math.floor(padding * 0.4);
+  const padRight = padding - padLeft;
+
+  let start = lowest - padLeft;
+  let end = highest + padRight;
+
+  // Align to C (start) and B (end) for clean octave groups
+  start = Math.floor(start / 12) * 12;
+  end = Math.ceil((end + 1) / 12) * 12 - 1;
+
+  // Clamp to reasonable MIDI range (C2=36 to B6=95)
+  start = Math.max(36, start);
+  end = Math.min(95, end);
+
   const all: MidiNote[] = [];
-  for (let n = lowest; n <= highest; n++) {
+  for (let n = start; n <= end; n++) {
     all.push(n);
   }
   return all;
@@ -88,14 +109,14 @@ export default function PianoKeyboard({ activeLanes, keyLabels, pressedNotes, hi
                 borderBottom: '3px solid rgba(0,0,0,0.2)',
                 borderRadius: '0 0 4px 4px',
                 boxShadow: isPressed
-                  ? `0 0 20px ${color}40, inset 0 2px 8px rgba(0,0,0,0.2)`
+                  ? `inset 0 0 12px ${color}40, inset 0 2px 8px rgba(0,0,0,0.2)`
                   : 'inset 0 -2px 4px rgba(0,0,0,0.08)',
               }}
             />
             {isPressed && (
               <div
                 className="absolute top-0 left-0 right-0 h-1"
-                style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
+                style={{ backgroundColor: color }}
               />
             )}
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
@@ -124,7 +145,7 @@ export default function PianoKeyboard({ activeLanes, keyLabels, pressedNotes, hi
 /**
  * Realistic piano layout with overlapping black keys.
  * Shows ALL notes in the range as piano keys. Notes not in activeLanes
- * appear as inactive (dimmed) keys.
+ * appear as inactive (dimmed) keys. Any key in pressedNotes lights up.
  */
 function PianoLayout({
   allNotes,
@@ -163,7 +184,6 @@ function PianoLayout({
 
   // Black keys: centered between adjacent white keys
   blackNotes.forEach(note => {
-    // The white key just below this black key (e.g., C# sits above C)
     const lowerWhite = note - 1;
     const idx = whiteKeyIndex.get(lowerWhite);
     if (idx !== undefined) {
@@ -184,6 +204,8 @@ function PianoLayout({
         const label = keyLabels.get(midiNote) ?? '';
         const noteName = midiNoteToName(midiNote);
         const pos = keyPositions.get(midiNote);
+        const isC = midiNote % 12 === 0;
+        const octave = Math.floor(midiNote / 12) - 1;
         if (!pos) return null;
 
         return (
@@ -194,6 +216,7 @@ function PianoLayout({
               left: `${pos.x}%`,
               width: `${pos.width}%`,
               height: WHITE_KEY_HEIGHT,
+              overflow: 'hidden', // Contain glow effects within key bounds
             }}
           >
             <div
@@ -211,15 +234,15 @@ function PianoLayout({
                 borderBottom: '4px solid rgba(0,0,0,0.15)',
                 borderRadius: '0 0 5px 5px',
                 boxShadow: isPressed
-                  ? `0 0 25px ${color}50, inset 0 2px 10px rgba(0,0,0,0.15)`
+                  ? `inset 0 0 15px ${color}50, inset 0 2px 10px rgba(0,0,0,0.15)`
                   : 'inset 0 -3px 6px rgba(0,0,0,0.06)',
                 opacity: isActive ? 1 : 0.5,
               }}
             />
             {isPressed && (
               <div
-                className="absolute top-0 left-0 right-0 h-1 rounded-b"
-                style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}
+                className="absolute top-0 left-0 right-0 h-1.5 rounded-b"
+                style={{ backgroundColor: color }}
               />
             )}
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
@@ -231,12 +254,23 @@ function PianoLayout({
                   {label}
                 </span>
               )}
-              <span
-                className="text-[9px] mt-0.5"
-                style={{ color: isPressed ? color : isActive ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.15)' }}
-              >
-                {noteName}
-              </span>
+              {/* Octave label on every C key */}
+              {isC && (
+                <span
+                  className="text-[8px] font-semibold mt-0.5"
+                  style={{ color: isPressed ? color : isActive ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)' }}
+                >
+                  C{octave}
+                </span>
+              )}
+              {!isC && isActive && (
+                <span
+                  className="text-[8px] mt-0.5"
+                  style={{ color: isPressed ? color : 'rgba(0,0,0,0.15)' }}
+                >
+                  {noteName}
+                </span>
+              )}
             </div>
           </div>
         );
@@ -262,6 +296,7 @@ function PianoLayout({
               left: `${pos.x}%`,
               width: `${pos.width}%`,
               height: BLACK_KEY_HEIGHT,
+              overflow: 'hidden', // Contain glow effects
             }}
           >
             <div
@@ -272,20 +307,20 @@ function PianoLayout({
                   : isHit
                     ? `linear-gradient(to bottom, ${color}30, ${color}20)`
                     : 'linear-gradient(to bottom, #2a2a2a, #1a1a1a)',
-                borderLeft: '1px solid rgba(255,255,255,0.05)',
-                borderRight: '1px solid rgba(255,255,255,0.05)',
-                borderBottom: '3px solid rgba(0,0,0,0.5)',
+                borderLeft: '1px solid rgba(0,0,0,0.3)',
+                borderRight: '1px solid rgba(0,0,0,0.3)',
+                borderBottom: '3px solid rgba(0,0,0,0.6)',
                 borderRadius: '0 0 4px 4px',
                 boxShadow: isPressed
-                  ? `0 0 20px ${color}60, inset 0 2px 8px rgba(0,0,0,0.4)`
+                  ? `inset 0 0 12px ${color}50, inset 0 2px 8px rgba(0,0,0,0.4)`
                   : '0 3px 8px rgba(0,0,0,0.6), inset 0 -2px 4px rgba(0,0,0,0.3)',
                 opacity: isActive ? 1 : 0.4,
               }}
             />
             {isPressed && (
               <div
-                className="absolute top-0 left-0 right-0 h-1 rounded-b"
-                style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
+                className="absolute top-0 left-0 right-0 h-1.5 rounded-b"
+                style={{ backgroundColor: color }}
               />
             )}
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-1.5 pointer-events-none">
