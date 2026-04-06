@@ -21,16 +21,16 @@ export default function ProfileSetup({ onCreateProfile }: ProfileSetupProps) {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#110D21] z-50 p-4">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#0F0B1A] z-50 p-4">
       {/* Title */}
       <div className="mb-10 text-center">
         <h1 className="text-5xl font-black tracking-tight mb-2">
-          <span className="bg-gradient-to-r from-[#FF6B6B] via-[#FF8E53] to-[#FFD93D] bg-clip-text text-transparent">
+          <span className="text-[#FF6B6B]">
             Welcome to
           </span>
         </h1>
         <h2 className="text-6xl font-black tracking-tight">
-          <span className="bg-gradient-to-r from-[#FF6B6B] via-[#FF8E53] to-[#FFD93D] bg-clip-text text-transparent">
+          <span className="text-[#FF6B6B]">
             Piano
           </span>
           <span className="text-white ml-3">Pals</span>
@@ -85,7 +85,7 @@ export default function ProfileSetup({ onCreateProfile }: ProfileSetupProps) {
           disabled={!canSubmit}
           className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
             canSubmit
-              ? 'bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53] text-white hover:scale-[1.02] active:scale-[0.98]'
+              ? 'bg-gradient-to-r from-[#FF6B6B] to-[#E85555] text-white hover:scale-[1.02] active:scale-[0.98]'
               : 'bg-gray-800 text-gray-600 cursor-not-allowed'
           }`}
         >

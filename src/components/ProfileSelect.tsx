@@ -18,11 +18,11 @@ export default function ProfileSelect({ profiles, onSelectProfile, onCreateNew, 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#110D21] z-50 p-4">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#0F0B1A] z-50 p-4">
       {/* Title */}
       <div className="mb-10 text-center">
         <h1 className="text-6xl font-black tracking-tight mb-2">
-          <span className="bg-gradient-to-r from-[#FF6B6B] via-[#FF8E53] to-[#FFD93D] bg-clip-text text-transparent">
+          <span className="text-[#FF6B6B]">
             Piano
           </span>
           <span className="text-white ml-3">Pals</span>
@@ -65,7 +65,7 @@ export default function ProfileSelect({ profiles, onSelectProfile, onCreateNew, 
                       <h3 className="text-white font-semibold text-lg truncate">
                         {profile.displayName}
                       </h3>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#4ECDC4]/15 text-[#4ECDC4] flex-shrink-0">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#FF6B6B]/15 text-[#FF6B6B] flex-shrink-0">
                         Lv.{profile.level}
                       </span>
                     </div>
@@ -74,7 +74,7 @@ export default function ProfileSelect({ profiles, onSelectProfile, onCreateNew, 
                     <div className="mt-1.5 flex items-center gap-2">
                       <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53]"
+                          className="h-full rounded-full bg-[#FF6B6B]"
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
@@ -135,7 +135,7 @@ export default function ProfileSelect({ profiles, onSelectProfile, onCreateNew, 
 
                 {/* Hover gradient */}
                 {!isEditing && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF8E53]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF6B6B]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                 )}
               </div>
 

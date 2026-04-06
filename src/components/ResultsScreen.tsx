@@ -85,7 +85,7 @@ export default function ResultsScreen({
   const xpProgress = profile ? xpToNextLevel(profile) : null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#110D21] z-50 overflow-y-auto py-8">
+    <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 overflow-y-auto py-8">
       <div className="text-center space-y-5 max-w-md w-full px-4">
         {/* Song info */}
         <div>
@@ -94,7 +94,7 @@ export default function ResultsScreen({
           </p>
           <h2 className="text-2xl font-bold text-white mt-1">{song.title}</h2>
           {isPracticeMode && (
-            <span className="inline-block mt-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="inline-block mt-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#FF6B6B]/10 text-[#FF6B6B] border border-[#FF6B6B]/20">
               Practice Mode — No XP earned
             </span>
           )}
@@ -156,7 +156,7 @@ export default function ResultsScreen({
                 <span className="text-[#635E78] text-xs">Lv.{profile?.level}</span>
                 <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53] transition-all duration-1000"
+                    className="h-full rounded-full bg-[#FF6B6B] transition-all duration-1000"
                     style={{ width: `${xpProgress.needed > 0 ? (xpProgress.current / xpProgress.needed) * 100 : 100}%` }}
                   />
                 </div>
@@ -186,11 +186,11 @@ export default function ResultsScreen({
               return (
                 <div
                   key={badgeId}
-                  className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 animate-bounce-in"
+                  className="inline-flex items-center gap-3 px-5 py-3 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/30 animate-bounce-in"
                 >
                   <span className="text-3xl">{badge.icon}</span>
                   <div className="text-left">
-                    <p className="text-amber-300 font-bold text-sm">Badge Earned!</p>
+                    <p className="text-[#FFD700] font-bold text-sm">Badge Earned!</p>
                     <p className="text-white font-semibold">{badge.name}</p>
                     <p className="text-gray-400 text-xs">{badge.description}</p>
                   </div>
@@ -226,7 +226,7 @@ export default function ResultsScreen({
           {onNextLevel && grade !== 'F' && (
             <button
               onClick={onNextLevel}
-              className="py-3 px-8 rounded-xl bg-gradient-to-r from-[#2ED573] to-[#4ECDC4] text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
+              className="py-3 px-8 rounded-xl bg-[#FF6B6B] text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
             >
               Next Level →
             </button>
@@ -236,7 +236,7 @@ export default function ResultsScreen({
             className={`py-3 px-8 rounded-xl text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform ${
               onNextLevel && grade !== 'F'
                 ? 'border border-white/20 bg-white/5'
-                : 'bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53]'
+                : 'bg-[#FF6B6B]'
             }`}
           >
             Play Again

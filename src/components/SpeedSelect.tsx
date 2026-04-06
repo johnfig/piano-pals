@@ -11,14 +11,14 @@ interface SpeedSelectProps {
 }
 
 const SPEEDS: { value: SpeedOption; label: string; desc: string; color: string }[] = [
-  { value: 0.5, label: '0.5x', desc: 'Super Slow', color: 'from-blue-500 to-cyan-500' },
-  { value: 0.75, label: '0.75x', desc: 'Slow', color: 'from-[#4ECDC4] to-blue-500' },
-  { value: 1, label: '1x', desc: 'Normal', color: 'from-[#FF6B6B] to-[#FF8E53]' },
+  { value: 0.5, label: '0.5x', desc: 'Super Slow', color: 'from-[#FF6B6B] to-[#E85555]' },
+  { value: 0.75, label: '0.75x', desc: 'Slow', color: 'from-[#FF6B6B] to-[#E85555]' },
+  { value: 1, label: '1x', desc: 'Normal', color: 'from-[#FF6B6B] to-[#E85555]' },
 ];
 
 export default function SpeedSelect({ song, onStart, onBack }: SpeedSelectProps) {
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#110D21] z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 p-4">
       <div className="text-center max-w-sm w-full space-y-8">
         {/* Song info */}
         <div>
@@ -54,12 +54,12 @@ export default function SpeedSelect({ song, onStart, onBack }: SpeedSelectProps)
                     Full XP
                   </span>
                 ) : (
-                  <span className="text-xs text-blue-400 px-2 py-0.5 rounded-full bg-blue-500/10">
+                  <span className="text-xs text-white/50 px-2 py-0.5 rounded-full bg-white/5">
                     Practice
                   </span>
                 )}
               </div>
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF8E53]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF6B6B]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </button>
           ))}
         </div>

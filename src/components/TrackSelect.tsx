@@ -25,7 +25,7 @@ export default function TrackSelect({ profile, inputManager, onSelectTrack, onFr
   const xpPct = xpProgress.needed > 0 ? (xpProgress.current / xpProgress.needed) * 100 : 100;
 
   return (
-    <div className="fixed inset-0 flex flex-col z-50 overflow-y-auto" style={{ backgroundColor: '#110D21' }}>
+    <div className="fixed inset-0 flex flex-col z-50 overflow-y-auto" style={{ backgroundColor: '#0F0B1A' }}>
       {/* Profile bar */}
       <div className="w-full max-w-2xl mx-auto px-4 pt-4">
         <button
@@ -46,7 +46,7 @@ export default function TrackSelect({ profile, inputManager, onSelectTrack, onFr
               <defs>
                 <linearGradient id="xpGrad" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0%" stopColor="#FF6B6B" />
-                  <stop offset="100%" stopColor="#FF8E53" />
+                  <stop offset="100%" stopColor="#FF6B6B" />
                 </linearGradient>
               </defs>
             </svg>
@@ -58,7 +58,7 @@ export default function TrackSelect({ profile, inputManager, onSelectTrack, onFr
           <div className="flex-1 text-left">
             <div className="flex items-center gap-2">
               <span className="text-white font-bold">{profile.displayName}</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#4ECDC4]/15 text-[#4ECDC4] border border-[#4ECDC4]/20">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#FF6B6B]/15 text-[#FF6B6B] border border-[#FF6B6B]/20">
                 LV {profile.level}
               </span>
               {profile.currentStreak > 0 && (
@@ -76,7 +76,7 @@ export default function TrackSelect({ profile, inputManager, onSelectTrack, onFr
       {/* Hero section */}
       <div className="text-center mt-8 mb-8">
         <h1 className="text-6xl font-black tracking-tight">
-          <span style={{ background: 'linear-gradient(135deg, #FF6B6B, #FF8E53, #FFD93D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <span style={{ color: '#FF6B6B' }}>
             Piano
           </span>
           <span className="text-white ml-3">Pals</span>

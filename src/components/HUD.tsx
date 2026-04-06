@@ -23,8 +23,8 @@ export default function HUD({ score, combo, multiplier, songTitle, crescendoActi
           {combo > 0 && (
             <div className={`transition-all ${combo >= 25 ? 'animate-pulse' : ''}`}>
               <p className="text-5xl font-black tabular-nums" style={{
-                color: combo >= 50 ? '#ffd700' : combo >= 25 ? '#ff6633' : '#ffffff',
-                textShadow: combo >= 25 ? `0 0 20px ${combo >= 50 ? 'rgba(255,215,0,0.6)' : 'rgba(255,102,51,0.6)'}` : 'none',
+                color: combo >= 50 ? '#ffd700' : combo >= 25 ? '#FF6B6B' : '#ffffff',
+                textShadow: combo >= 25 ? `0 0 20px ${combo >= 50 ? 'rgba(255,215,0,0.6)' : 'rgba(255,107,107,0.6)'}` : 'none',
               }}>
                 {combo}
               </p>

@@ -455,7 +455,7 @@ export default function Game() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-[#110D21] flex items-center justify-center">
+      <div className="fixed inset-0 bg-[#0F0B1A] flex items-center justify-center">
         <div className="text-gray-500 text-lg">Loading...</div>
       </div>
     );
@@ -482,7 +482,7 @@ export default function Game() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#110D21] overflow-hidden select-none">
+    <div className="fixed inset-0 bg-[#0F0B1A] overflow-hidden select-none">
       {/* Game canvas */}
       {(gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'COUNTDOWN') && currentSong && (
         <>

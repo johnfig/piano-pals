@@ -23,7 +23,7 @@ export default function Menu({ onSelectSong, profile, onSwitchProfile, onBack }:
   const avatar = profile ? (AVATARS[profile.avatarIndex] ?? '🎹') : '🎹';
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center bg-[#110D21] z-50 overflow-y-auto">
+    <div className="fixed inset-0 flex flex-col items-center bg-[#0F0B1A] z-50 overflow-y-auto">
       {/* Profile bar */}
       {profile && (
         <div className="w-full max-w-lg px-4 pt-4">
@@ -35,7 +35,7 @@ export default function Menu({ onSelectSong, profile, onSwitchProfile, onBack }:
             <div className="flex-1 text-left">
               <div className="flex items-center gap-2">
                 <span className="text-white font-semibold">{profile.displayName}</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#4ECDC4]/15 text-[#4ECDC4]">
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#FF6B6B]/15 text-[#FF6B6B]">
                   Lv.{profile.level}
                 </span>
                 {profile.currentStreak > 0 && (
@@ -46,7 +46,7 @@ export default function Menu({ onSelectSong, profile, onSwitchProfile, onBack }:
                 <div className="mt-1 flex items-center gap-2">
                   <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53]"
+                      className="h-full rounded-full bg-[#FF6B6B]"
                       style={{ width: `${xpProgress.needed > 0 ? (xpProgress.current / xpProgress.needed) * 100 : 100}%` }}
                     />
                   </div>
@@ -72,10 +72,10 @@ export default function Menu({ onSelectSong, profile, onSwitchProfile, onBack }:
       {/* Title */}
       <div className="mb-8 mt-4 text-center">
         <h1 className="text-7xl font-black tracking-tight mb-2">
-          <span className="bg-gradient-to-r from-[#FF6B6B] via-[#FF8E53] to-[#FFD93D] bg-clip-text text-transparent">
+          <span className="text-[#FF6B6B]">
             Piano
           </span>
-          <span className="bg-gradient-to-r from-[#FF6B6B] via-[#FF8E53] to-[#FFD93D] bg-clip-text text-transparent ml-3">Pals</span>
+          <span className="text-[#FF6B6B] ml-3">Pals</span>
         </h1>
         <p className="text-gray-500 text-lg tracking-widest uppercase">
           Master the keys
@@ -134,7 +134,7 @@ export default function Menu({ onSelectSong, profile, onSwitchProfile, onBack }:
               )}
 
               {/* Hover gradient */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF8E53]/5 to-[#FFD93D]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF6B6B]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </button>
           );
         })}

@@ -13,7 +13,7 @@ export default function PausedOverlay({ onResume, onQuit }: PausedOverlayProps) 
         <div className="space-y-3">
           <button
             onClick={onResume}
-            className="block w-48 mx-auto py-3 px-6 rounded-xl bg-gradient-to-r from-[#FF6B6B] to-[#FF8E53] text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
+            className="block w-48 mx-auto py-3 px-6 rounded-xl bg-[#FF6B6B] text-white font-bold text-lg hover:scale-105 active:scale-95 transition-transform"
           >
             Resume
           </button>

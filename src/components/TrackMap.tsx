@@ -72,7 +72,7 @@ export default function TrackMap({ track, profile, onSelectSong, onBack }: Track
   const OFFSET_PX = 80;
 
   return (
-    <div className="fixed inset-0 flex flex-col z-50" style={{ backgroundColor: '#110D21' }}>
+    <div className="fixed inset-0 flex flex-col z-50" style={{ backgroundColor: '#0F0B1A' }}>
       {/* Header with gradient accent */}
       <div
         className="flex-shrink-0 relative z-10"
