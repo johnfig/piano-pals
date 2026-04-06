@@ -142,13 +142,12 @@ class ScoreManager {
   getGrade(): Grade {
     if (this.totalNotes === 0) return 'F';
 
-    // Max possible score: every note is PERFECT at max multiplier
-    // Simplified: use ratio of (perfect+great+good) weighted by their points
-    const maxPossible = this.totalNotes * HIT_POINTS.PERFECT * 4; // max multiplier is 4
-    const ratio = maxPossible > 0 ? this.score / maxPossible : 0;
+    // Grade based on accuracy (percentage of notes hit)
+    const hitNotes = this.stats.perfect + this.stats.great + this.stats.good;
+    const accuracy = hitNotes / this.totalNotes;
 
     for (const threshold of GRADE_THRESHOLDS) {
-      if (ratio >= threshold.min) {
+      if (accuracy >= threshold.min) {
         return threshold.grade;
       }
     }

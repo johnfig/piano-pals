@@ -15,7 +15,7 @@ try {
   // Dynamic import of suzuki songs
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const suzukiModule = require('@/songs/suzuki');
-  suzukiSongs = suzukiModule.suzukiSongs || [];
+  suzukiSongs = suzukiModule.suzukiBook1Songs || suzukiModule.suzukiSongs || [];
   suzukiSongsLoaded = true;
 } catch {
   // Suzuki songs not yet available

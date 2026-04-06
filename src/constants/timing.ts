@@ -1,4 +1,5 @@
 export const FALL_DURATION = 2.0;       // seconds for note to fall from top to hit zone
+export const SONG_START_DELAY = 2.0;   // seconds before first note reaches hit zone (lets notes fall from top)
 export const COUNTDOWN_DURATION = 3;    // 3-2-1-GO
 export const HIT_ZONE_Y = 0.85;        // 85% from top of canvas
 export const NOTE_SPAWN_Y = -0.05;     // just above canvas

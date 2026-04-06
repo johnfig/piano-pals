@@ -1,11 +1,20 @@
 import { MidiNote } from '@/types/game';
 import { midiNoteToFrequency } from '@/constants/keyboard';
 
+interface ActiveVoice {
+  oscillators: OscillatorNode[];
+  gains: GainNode[];
+  velocity: number;
+}
+
 class AudioEngine {
   private static instance: AudioEngine;
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private initialized = false;
+
+  // Track active sustained notes for key-up release
+  private activeVoices: Map<MidiNote, ActiveVoice> = new Map();
 
   private constructor() {}
 
@@ -42,37 +51,41 @@ class AudioEngine {
     }
   }
 
-  playNote(midiNote: MidiNote, duration: number = 0.3, velocity: number = 100): void {
+  /**
+   * Start a sustained note that plays until stopNote() is called.
+   * Like pressing a piano key — sound continues until you release.
+   */
+  startNote(midiNote: MidiNote, velocity: number = 100): void {
+    // Stop any existing voice for this note first
+    this.stopNote(midiNote);
+
     const ctx = this.ensureContext();
     const freq = midiNoteToFrequency(midiNote);
     const now = ctx.currentTime;
 
-    // Scale volume by velocity (0-127 MIDI range)
     const velScale = Math.max(0.2, velocity / 127);
-
-    // ADSR envelope parameters
     const attack = 0.005;
-    const decay = 0.2;
-    const sustainLevel = 0.3;
-    const release = 0.5;
-    const noteEnd = now + duration;
+    const decay = 0.3;
+    const sustainLevel = 0.4;
 
-    // --- Layer 1: Sawtooth (low volume body) ---
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+
+    // --- Layer 1: Sawtooth (body) ---
     const saw = ctx.createOscillator();
     const sawGain = ctx.createGain();
     saw.type = 'sawtooth';
     saw.frequency.value = freq;
     saw.detune.value = -5;
-    sawGain.gain.value = 0;
-    saw.connect(sawGain);
-    sawGain.connect(this.masterGain!);
-
     const sawVol = 0.08 * velScale;
     sawGain.gain.setValueAtTime(0, now);
     sawGain.gain.linearRampToValueAtTime(sawVol, now + attack);
     sawGain.gain.linearRampToValueAtTime(sawVol * sustainLevel, now + attack + decay);
-    sawGain.gain.setValueAtTime(sawVol * sustainLevel, noteEnd);
-    sawGain.gain.linearRampToValueAtTime(0, noteEnd + release);
+    saw.connect(sawGain);
+    sawGain.connect(this.masterGain!);
+    saw.start(now);
+    oscillators.push(saw);
+    gains.push(sawGain);
 
     // --- Layer 2: Triangle (main tone) ---
     const tri = ctx.createOscillator();
@@ -80,41 +93,129 @@ class AudioEngine {
     tri.type = 'triangle';
     tri.frequency.value = freq;
     tri.detune.value = 3;
-    triGain.gain.value = 0;
+    const triVol = 0.25 * velScale;
+    triGain.gain.setValueAtTime(0, now);
+    triGain.gain.linearRampToValueAtTime(triVol, now + attack);
+    triGain.gain.linearRampToValueAtTime(triVol * sustainLevel, now + attack + decay);
     tri.connect(triGain);
     triGain.connect(this.masterGain!);
+    tri.start(now);
+    oscillators.push(tri);
+    gains.push(triGain);
 
+    // --- Layer 3: Sine harmonic (brightness) ---
+    const sine = ctx.createOscillator();
+    const sineGain = ctx.createGain();
+    sine.type = 'sine';
+    sine.frequency.value = freq * 2;
+    const sineVol = 0.12 * velScale;
+    sineGain.gain.setValueAtTime(0, now);
+    sineGain.gain.linearRampToValueAtTime(sineVol, now + attack);
+    sineGain.gain.linearRampToValueAtTime(sineVol * sustainLevel, now + attack + decay);
+    sine.connect(sineGain);
+    sineGain.connect(this.masterGain!);
+    sine.start(now);
+    oscillators.push(sine);
+    gains.push(sineGain);
+
+    this.activeVoices.set(midiNote, { oscillators, gains, velocity });
+  }
+
+  /**
+   * Release a sustained note — triggers the release envelope.
+   */
+  stopNote(midiNote: MidiNote): void {
+    const voice = this.activeVoices.get(midiNote);
+    if (!voice) return;
+
+    const ctx = this.ctx;
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const release = 0.4;
+
+    // Ramp down all gains and stop oscillators
+    for (const gain of voice.gains) {
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + release);
+    }
+    for (const osc of voice.oscillators) {
+      osc.stop(now + release + 0.05);
+    }
+
+    this.activeVoices.delete(midiNote);
+  }
+
+  /**
+   * Stop all active notes (e.g., when pausing or quitting).
+   */
+  stopAllNotes(): void {
+    for (const midiNote of this.activeVoices.keys()) {
+      this.stopNote(midiNote);
+    }
+  }
+
+  /**
+   * Play a short fixed-duration note (used for SFX, not gameplay).
+   */
+  playNote(midiNote: MidiNote, duration: number = 0.3, velocity: number = 100): void {
+    const ctx = this.ensureContext();
+    const freq = midiNoteToFrequency(midiNote);
+    const now = ctx.currentTime;
+
+    const velScale = Math.max(0.2, velocity / 127);
+    const attack = 0.005;
+    const decay = 0.2;
+    const sustainLevel = 0.3;
+    const release = 0.5;
+    const noteEnd = now + duration;
+
+    const saw = ctx.createOscillator();
+    const sawGain = ctx.createGain();
+    saw.type = 'sawtooth';
+    saw.frequency.value = freq;
+    saw.detune.value = -5;
+    const sawVol = 0.08 * velScale;
+    sawGain.gain.setValueAtTime(0, now);
+    sawGain.gain.linearRampToValueAtTime(sawVol, now + attack);
+    sawGain.gain.linearRampToValueAtTime(sawVol * sustainLevel, now + attack + decay);
+    sawGain.gain.setValueAtTime(sawVol * sustainLevel, noteEnd);
+    sawGain.gain.linearRampToValueAtTime(0, noteEnd + release);
+    saw.connect(sawGain);
+    sawGain.connect(this.masterGain!);
+
+    const tri = ctx.createOscillator();
+    const triGain = ctx.createGain();
+    tri.type = 'triangle';
+    tri.frequency.value = freq;
+    tri.detune.value = 3;
     const triVol = 0.25 * velScale;
     triGain.gain.setValueAtTime(0, now);
     triGain.gain.linearRampToValueAtTime(triVol, now + attack);
     triGain.gain.linearRampToValueAtTime(triVol * sustainLevel, now + attack + decay);
     triGain.gain.setValueAtTime(triVol * sustainLevel, noteEnd);
     triGain.gain.linearRampToValueAtTime(0, noteEnd + release);
+    tri.connect(triGain);
+    triGain.connect(this.masterGain!);
 
-    // --- Layer 3: Sine at 2x frequency (brightness/harmonic) ---
     const sine = ctx.createOscillator();
     const sineGain = ctx.createGain();
     sine.type = 'sine';
     sine.frequency.value = freq * 2;
-    sineGain.gain.value = 0;
-    sine.connect(sineGain);
-    sineGain.connect(this.masterGain!);
-
     const sineVol = 0.12 * velScale;
     sineGain.gain.setValueAtTime(0, now);
     sineGain.gain.linearRampToValueAtTime(sineVol, now + attack);
     sineGain.gain.linearRampToValueAtTime(sineVol * sustainLevel, now + attack + decay);
     sineGain.gain.setValueAtTime(sineVol * sustainLevel, noteEnd);
     sineGain.gain.linearRampToValueAtTime(0, noteEnd + release);
+    sine.connect(sineGain);
+    sineGain.connect(this.masterGain!);
 
-    // Start and stop all oscillators
     const stopTime = noteEnd + release + 0.05;
-    saw.start(now);
-    saw.stop(stopTime);
-    tri.start(now);
-    tri.stop(stopTime);
-    sine.start(now);
-    sine.stop(stopTime);
+    saw.start(now); saw.stop(stopTime);
+    tri.start(now); tri.stop(stopTime);
+    sine.start(now); sine.stop(stopTime);
   }
 
   playHitSound(): void {
@@ -251,7 +352,6 @@ class AudioEngine {
     const ctx = this.ensureContext();
     const now = ctx.currentTime;
 
-    // Triumphant fanfare
     const freqs = [440, 554, 659, 880]; // A4, C#5, E5, A5
     freqs.forEach((freq, i) => {
       const osc = ctx.createOscillator();

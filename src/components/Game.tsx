@@ -6,7 +6,7 @@ import { Track } from '@/types/tracks';
 import { getSong } from '@/data/songRegistry';
 import { getActiveLanes, buildNoteToLane, buildKeyboardMap, buildKeyLabels, DEFAULT_ACTIVE_LANES, DEFAULT_KEY_LABELS } from '@/constants/keyboard';
 import { getLaneColor } from '@/constants/colors';
-import { FALL_DURATION } from '@/constants/timing';
+import { FALL_DURATION, SONG_START_DELAY } from '@/constants/timing';
 import { useProfile } from '@/contexts/ProfileContext';
 
 import AudioEngine from '@/engine/AudioEngine';
@@ -173,8 +173,9 @@ export default function Game() {
 
     inputRef.current.setActiveLanes(songLanes);
 
-    gameStartTimeRef.current = performance.now() / 1000;
-    lastFrameTimeRef.current = gameStartTimeRef.current;
+    // Offset start time so currentTime begins negative, giving notes time to fall from the top
+    gameStartTimeRef.current = performance.now() / 1000 + SONG_START_DELAY;
+    lastFrameTimeRef.current = performance.now() / 1000;
     totalPausedRef.current = 0;
 
     setLastResultData(null);
@@ -191,7 +192,7 @@ export default function Game() {
 
     if (!audio || !noteManager || !scoreManager || !particleSys || !effectsMgr) return;
 
-    audio.playNote(midiNote, 0.3);
+    audio.startNote(midiNote);
 
     const currentTime = performance.now() / 1000 - gameStartTimeRef.current - totalPausedRef.current;
     const hitResult = noteManager.checkHit(midiNote, currentTime);
@@ -269,6 +270,7 @@ export default function Game() {
 
   const handleQuit = useCallback(() => {
     inputRef.current.stop();
+    audioRef.current?.stopAllNotes();
     cancelAnimationFrame(rafRef.current);
     // Return to track map if we came from a track, otherwise to track select
     if (currentTrack) {
@@ -313,6 +315,7 @@ export default function Game() {
     if (gameState !== 'PLAYING') {
       if (gameState === 'PAUSED') {
         inputRef.current.stop();
+        audioRef.current?.stopAllNotes();
       }
       return;
     }
@@ -320,6 +323,9 @@ export default function Game() {
     const input = inputRef.current;
     input.onKeyDown = handleNotePress;
     input.onKeyUp = (midiNote: MidiNote) => {
+      // Release the sustained note sound
+      audioRef.current?.stopNote(midiNote);
+
       setPressedNotes((prev) => {
         const next = new Set(prev);
         next.delete(midiNote);
