@@ -240,7 +240,7 @@ function PianoLayout({
                 style={{ height: 3, backgroundColor: color }}
               />
             )}
-            <div className="absolute inset-0 flex flex-col items-center justify-end pb-2 pointer-events-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-end pb-1.5 pointer-events-none">
               {label && (
                 <span
                   className="text-xs font-bold"
@@ -249,22 +249,22 @@ function PianoLayout({
                   {label}
                 </span>
               )}
-              {isC && (
+              {/* Always show note name on active keys, bold on C keys */}
+              {isActive ? (
                 <span
-                  className="text-[8px] font-semibold mt-0.5"
-                  style={{ color: isPressed ? color : isActive ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.2)' }}
-                >
-                  C{octave}
-                </span>
-              )}
-              {!isC && isActive && (
-                <span
-                  className="text-[8px] mt-0.5"
-                  style={{ color: isPressed ? color : 'rgba(0,0,0,0.15)' }}
+                  className={`${isC ? 'text-[10px] font-bold' : 'text-[9px] font-semibold'} mt-0.5`}
+                  style={{ color: isPressed ? color : 'rgba(0,0,0,0.4)' }}
                 >
                   {noteName}
                 </span>
-              )}
+              ) : isC ? (
+                <span
+                  className="text-[8px] font-semibold mt-0.5"
+                  style={{ color: 'rgba(0,0,0,0.2)' }}
+                >
+                  C{octave}
+                </span>
+              ) : null}
             </div>
           </div>
         );
@@ -328,8 +328,8 @@ function PianoLayout({
               )}
               {isActive && (
                 <span
-                  className="text-[8px] mt-0.5"
-                  style={{ color: isPressed ? color : 'rgba(255,255,255,0.2)' }}
+                  className="text-[9px] font-semibold mt-0.5"
+                  style={{ color: isPressed ? color : 'rgba(255,255,255,0.35)' }}
                 >
                   {noteName}
                 </span>
