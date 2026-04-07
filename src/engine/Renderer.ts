@@ -299,7 +299,7 @@ class Renderer {
       // Scale font to the note block — larger and bolder than before
       const fontSize = Math.max(14, Math.min(28, noteWidth * 0.65, noteHeight * 0.6));
       const centerX = x + noteWidth / 2;
-      const labelY = y + Math.min(noteHeight / 2, fontSize * 0.8);
+      const labelY = y + noteHeight / 2;
 
       ctx.shadowBlur = 0;
       ctx.font = `900 ${fontSize}px "Inter", system-ui, sans-serif`;
