@@ -12,6 +12,7 @@ export default function MidiStatus({ inputManager }: MidiStatusProps) {
   const [midiEnabled, setMidiEnabled] = useState(false);
   const [devices, setDevices] = useState<string[]>([]);
   const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setMidiEnabled(inputManager.isMidiEnabled());
@@ -20,6 +21,8 @@ export default function MidiStatus({ inputManager }: MidiStatusProps) {
     const onDevicesChanged = (newDevices: string[]) => {
       setDevices(newDevices);
       setMidiEnabled(inputManager.isMidiEnabled());
+      // Clear error when devices connect successfully
+      if (newDevices.length > 0) setError(null);
     };
     inputManager.addOnMidiDevicesChanged(onDevicesChanged);
 
@@ -30,17 +33,25 @@ export default function MidiStatus({ inputManager }: MidiStatusProps) {
 
   const handleConnect = async () => {
     setConnecting(true);
+    setError(null);
     const ok = await inputManager.enableMidi();
     setMidiEnabled(ok);
     setDevices(inputManager.getConnectedMidiDevices());
+    if (!ok || inputManager.lastMidiError) {
+      setError(inputManager.lastMidiError);
+    }
     setConnecting(false);
   };
 
   const handleReconnect = async () => {
     setConnecting(true);
+    setError(null);
     const ok = await inputManager.reconnectMidi();
-    setMidiEnabled(ok);
+    setMidiEnabled(inputManager.isMidiEnabled());
     setDevices(inputManager.getConnectedMidiDevices());
+    if (!ok || inputManager.lastMidiError) {
+      setError(inputManager.lastMidiError);
+    }
     setConnecting(false);
   };
 
@@ -93,9 +104,15 @@ export default function MidiStatus({ inputManager }: MidiStatusProps) {
           </div>
         )}
 
-        {enabledNoDevices && (
+        {enabledNoDevices && !error && (
           <p className="mt-2 text-yellow-500/70 text-xs">
             No devices detected. Plug in your keyboard and tap Reconnect.
+          </p>
+        )}
+
+        {error && (
+          <p className="mt-2 text-red-400/90 text-xs leading-relaxed">
+            {error}
           </p>
         )}
       </div>

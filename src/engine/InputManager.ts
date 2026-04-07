@@ -41,42 +41,62 @@ class InputManager {
    * Initialize Web MIDI API. Call once on app startup.
    * Returns true if MIDI is available.
    */
+  /** Last error from enableMidi (for UI display) */
+  lastMidiError: string | null = null;
+
+  /**
+   * Request Web MIDI access. MUST be called from a user gesture (click/tap)
+   * or Chrome will silently deny and cache the denial.
+   */
   async enableMidi(): Promise<boolean> {
-    if (!navigator.requestMIDIAccess) return false;
+    this.lastMidiError = null;
+    if (!navigator.requestMIDIAccess) {
+      this.lastMidiError = 'Your browser does not support MIDI. Use Chrome or Edge.';
+      return false;
+    }
 
     try {
-      this.midiAccess = await navigator.requestMIDIAccess();
+      this.midiAccess = await navigator.requestMIDIAccess({ sysex: false });
       this.midiEnabled = true;
       this.updateMidiDevices();
 
       // Listen for device connect/disconnect — always re-bind listeners
       this.midiAccess.onstatechange = () => {
         this.updateMidiDevices();
-        // Always re-bind MIDI message handlers on any state change
         this.startMidiListening();
       };
 
-      // Bind listeners immediately so MIDI works even before start()
+      // Bind listeners immediately
       this.startMidiListening();
 
+      if (this.midiDevices.length === 0) {
+        this.lastMidiError = 'MIDI enabled but no keyboard detected. Check USB connection.';
+      }
+
       return true;
-    } catch {
-      console.warn('MIDI access denied or unavailable');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Permission') || msg.includes('denied')) {
+        this.lastMidiError = 'MIDI permission denied. Click the lock icon in the address bar → Site Settings → MIDI → Allow, then reload.';
+      } else {
+        this.lastMidiError = `MIDI error: ${msg}`;
+      }
+      console.warn('MIDI access failed:', msg);
       return false;
     }
   }
 
   /** Force a fresh MIDI scan — useful after unplug/replug */
   async reconnectMidi(): Promise<boolean> {
-    // Don't null out midiAccess — browser caches it and re-enumerating
-    // from the existing object is more reliable than re-requesting
+    this.lastMidiError = null;
     if (this.midiAccess) {
       this.updateMidiDevices();
       this.startMidiListening();
+      if (this.midiDevices.length === 0) {
+        this.lastMidiError = 'No keyboard detected. Check USB connection and try again.';
+      }
       return this.midiDevices.length > 0;
     }
-    // No existing access — request fresh
-    this.midiEnabled = false;
     return this.enableMidi();
   }
 

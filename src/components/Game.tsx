@@ -83,15 +83,16 @@ export default function Game() {
   const particleRef = useRef<ParticleSystem | null>(null);
   const effectsRef = useRef<EffectsManager | null>(null);
 
-  // Try to enable MIDI on mount, track device connection
+  // Track MIDI device connection (don't auto-enable — Chrome requires user gesture)
   useEffect(() => {
     const input = inputRef.current;
     const onDevicesChanged = (devices: string[]) => {
       setMidiConnected(devices.length > 0);
     };
-    input.enableMidi().then(() => {
+    // If MIDI was already enabled (e.g., user clicked Connect), sync state
+    if (input.isMidiEnabled()) {
       setMidiConnected(input.getConnectedMidiDevices().length > 0);
-    });
+    }
     input.addOnMidiDevicesChanged(onDevicesChanged);
     return () => input.removeOnMidiDevicesChanged(onDevicesChanged);
   }, []);
