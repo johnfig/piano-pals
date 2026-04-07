@@ -42,6 +42,7 @@ export default function Game() {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [showProfileCreate, setShowProfileCreate] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState<SpeedOption>(1);
+  const [twoHands, setTwoHands] = useState(false);
   const isPracticeMode = speedMultiplier !== 1;
 
   // Result data for the results screen
@@ -104,8 +105,8 @@ export default function Game() {
   // Resolve which note set to use (authentic piano vs simplified keyboard)
   const resolvedSong = useMemo(() => {
     if (!currentSong) return null;
-    return resolveSongData(currentSong, effectiveMidiConnected);
-  }, [currentSong, effectiveMidiConnected]);
+    return resolveSongData(currentSong, effectiveMidiConnected, twoHands);
+  }, [currentSong, effectiveMidiConnected, twoHands]);
 
   // Compute dynamic lanes from resolved note range
   const activeLanes = useMemo(() => {
@@ -201,9 +202,10 @@ export default function Game() {
     setGameState('SPEED_SELECT');
   }, []);
 
-  const handleSpeedSelected = useCallback((speed: SpeedOption) => {
+  const handleSpeedSelected = useCallback((speed: SpeedOption, hands: boolean) => {
     initAudio();
     setSpeedMultiplier(speed);
+    setTwoHands(hands);
     setGameState('COUNTDOWN');
   }, [initAudio]);
 
@@ -630,6 +632,7 @@ export default function Game() {
       {gameState === 'SPEED_SELECT' && currentSong && (
         <SpeedSelect
           song={currentSong}
+          isMidiMode={effectiveMidiConnected}
           onStart={handleSpeedSelected}
           onBack={() => {
             if (currentTrack) {

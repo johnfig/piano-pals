@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { Song } from '@/types/game';
 
 export type SpeedOption = 0.5 | 0.75 | 1;
 
 interface SpeedSelectProps {
   song: Song;
-  onStart: (speed: SpeedOption) => void;
+  isMidiMode: boolean;
+  onStart: (speed: SpeedOption, twoHands: boolean) => void;
   onBack: () => void;
 }
 
@@ -16,7 +18,9 @@ const SPEEDS: { value: SpeedOption; label: string; desc: string; color: string }
   { value: 1, label: '1x', desc: 'Normal', color: 'from-[#FF6B6B] to-[#E85555]' },
 ];
 
-export default function SpeedSelect({ song, onStart, onBack }: SpeedSelectProps) {
+export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: SpeedSelectProps) {
+  const [twoHands, setTwoHands] = useState(false);
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 p-4">
       <div className="text-center max-w-sm w-full space-y-8">
@@ -30,6 +34,39 @@ export default function SpeedSelect({ song, onStart, onBack }: SpeedSelectProps)
           </div>
         </div>
 
+        {/* Hand mode toggle (MIDI only) */}
+        {isMidiMode && (
+          <div className="space-y-2">
+            <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
+              Hand Mode
+            </p>
+            <div className="flex rounded-xl overflow-hidden border border-white/10">
+              <button
+                onClick={() => setTwoHands(false)}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
+                  !twoHands
+                    ? 'bg-blue-500/20 text-blue-300 border-r border-blue-500/30'
+                    : 'bg-[#1A1530] text-gray-500 border-r border-white/10 hover:bg-white/5'
+                }`}
+              >
+                <span className="block text-lg mb-0.5">One Hand</span>
+                <span className="block text-[10px] opacity-70">Melody only</span>
+              </button>
+              <button
+                onClick={() => setTwoHands(true)}
+                className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
+                  twoHands
+                    ? 'bg-purple-500/20 text-purple-300'
+                    : 'bg-[#1A1530] text-gray-500 hover:bg-white/5'
+                }`}
+              >
+                <span className="block text-lg mb-0.5">Two Hands</span>
+                <span className="block text-[10px] opacity-70">Melody + Bass</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Speed options */}
         <div className="space-y-3">
           <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
@@ -39,7 +76,7 @@ export default function SpeedSelect({ song, onStart, onBack }: SpeedSelectProps)
           {SPEEDS.map(({ value, label, desc, color }) => (
             <button
               key={value}
-              onClick={() => onStart(value)}
+              onClick={() => onStart(value, twoHands)}
               className="w-full group relative overflow-hidden rounded-xl border border-white/10 bg-[#1A1530] px-6 py-4 text-left transition-all hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] active:scale-[0.98]"
             >
               <div className="flex items-center justify-between">
