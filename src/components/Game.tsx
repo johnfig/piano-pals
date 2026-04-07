@@ -26,6 +26,7 @@ import Menu from './Menu';
 import Countdown from './Countdown';
 import SpeedSelect from './SpeedSelect';
 import { SpeedOption } from './SpeedSelect';
+import { InstrumentType } from '@/engine/AudioEngine';
 import PausedOverlay from './PausedOverlay';
 import ResultsScreen from './ResultsScreen';
 import HUD from './HUD';
@@ -202,8 +203,9 @@ export default function Game() {
     setGameState('SPEED_SELECT');
   }, []);
 
-  const handleSpeedSelected = useCallback((speed: SpeedOption, hands: boolean) => {
+  const handleSpeedSelected = useCallback((speed: SpeedOption, hands: boolean, instrument: InstrumentType) => {
     initAudio();
+    audioRef.current?.setInstrument(instrument);
     setSpeedMultiplier(speed);
     setTwoHands(hands);
     setGameState('COUNTDOWN');

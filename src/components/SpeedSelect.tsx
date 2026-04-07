@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { Song } from '@/types/game';
+import { InstrumentType } from '@/engine/AudioEngine';
 
 export type SpeedOption = 0.5 | 0.75 | 1;
 
 interface SpeedSelectProps {
   song: Song;
   isMidiMode: boolean;
-  onStart: (speed: SpeedOption, twoHands: boolean) => void;
+  onStart: (speed: SpeedOption, twoHands: boolean, instrument: InstrumentType) => void;
   onBack: () => void;
 }
 
@@ -20,10 +21,11 @@ const SPEEDS: { value: SpeedOption; label: string; desc: string; color: string }
 
 export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: SpeedSelectProps) {
   const [twoHands, setTwoHands] = useState(false);
+  const [instrument, setInstrument] = useState<InstrumentType>('piano');
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 p-4">
-      <div className="text-center max-w-sm w-full space-y-8">
+    <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 p-4 overflow-y-auto">
+      <div className="text-center max-w-sm w-full space-y-6 py-8">
         {/* Song info */}
         <div>
           <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">{song.artist}</p>
@@ -67,6 +69,35 @@ export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: Speed
           </div>
         )}
 
+        {/* Instrument selector */}
+        <div className="space-y-2">
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
+            Sound
+          </p>
+          <div className="flex rounded-xl overflow-hidden border border-white/10">
+            <button
+              onClick={() => setInstrument('piano')}
+              className={`flex-1 py-2.5 px-4 text-sm font-semibold transition-all ${
+                instrument === 'piano'
+                  ? 'bg-amber-500/20 text-amber-300 border-r border-amber-500/30'
+                  : 'bg-[#1A1530] text-gray-500 border-r border-white/10 hover:bg-white/5'
+              }`}
+            >
+              Piano
+            </button>
+            <button
+              onClick={() => setInstrument('electric')}
+              className={`flex-1 py-2.5 px-4 text-sm font-semibold transition-all ${
+                instrument === 'electric'
+                  ? 'bg-cyan-500/20 text-cyan-300'
+                  : 'bg-[#1A1530] text-gray-500 hover:bg-white/5'
+              }`}
+            >
+              Electric Piano
+            </button>
+          </div>
+        </div>
+
         {/* Speed options */}
         <div className="space-y-3">
           <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
@@ -76,7 +107,7 @@ export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: Speed
           {SPEEDS.map(({ value, label, desc, color }) => (
             <button
               key={value}
-              onClick={() => onStart(value, twoHands)}
+              onClick={() => onStart(value, twoHands, instrument)}
               className="w-full group relative overflow-hidden rounded-xl border border-white/10 bg-[#1A1530] px-6 py-4 text-left transition-all hover:bg-white/10 hover:border-white/20 hover:scale-[1.02] active:scale-[0.98]"
             >
               <div className="flex items-center justify-between">

@@ -1,6 +1,8 @@
 import { MidiNote } from '@/types/game';
 import { midiNoteToFrequency } from '@/constants/keyboard';
 
+export type InstrumentType = 'piano' | 'electric';
+
 interface ActiveVoice {
   oscillators: OscillatorNode[];
   gains: GainNode[];
@@ -12,6 +14,7 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private initialized = false;
+  private instrument: InstrumentType = 'piano';
 
   // Track active sustained notes for key-up release
   private activeVoices: Map<MidiNote, ActiveVoice> = new Map();
@@ -51,14 +54,30 @@ class AudioEngine {
     }
   }
 
+  setInstrument(type: InstrumentType): void {
+    this.instrument = type;
+  }
+
+  getInstrument(): InstrumentType {
+    return this.instrument;
+  }
+
   /**
    * Start a sustained note that plays until stopNote() is called.
-   * Like pressing a piano key — sound continues until you release.
+   * Sound varies based on selected instrument.
    */
   startNote(midiNote: MidiNote, velocity: number = 100): void {
-    // Stop any existing voice for this note first
     this.stopNote(midiNote);
 
+    if (this.instrument === 'electric') {
+      this.startNoteElectric(midiNote, velocity);
+    } else {
+      this.startNotePiano(midiNote, velocity);
+    }
+  }
+
+  /** Acoustic piano: sawtooth + triangle + sine harmonic */
+  private startNotePiano(midiNote: MidiNote, velocity: number): void {
     const ctx = this.ensureContext();
     const freq = midiNoteToFrequency(midiNote);
     const now = ctx.currentTime;
@@ -71,7 +90,7 @@ class AudioEngine {
     const oscillators: OscillatorNode[] = [];
     const gains: GainNode[] = [];
 
-    // --- Layer 1: Sawtooth (body) ---
+    // Layer 1: Sawtooth (body)
     const saw = ctx.createOscillator();
     const sawGain = ctx.createGain();
     saw.type = 'sawtooth';
@@ -87,7 +106,7 @@ class AudioEngine {
     oscillators.push(saw);
     gains.push(sawGain);
 
-    // --- Layer 2: Triangle (main tone) ---
+    // Layer 2: Triangle (main tone)
     const tri = ctx.createOscillator();
     const triGain = ctx.createGain();
     tri.type = 'triangle';
@@ -103,7 +122,7 @@ class AudioEngine {
     oscillators.push(tri);
     gains.push(triGain);
 
-    // --- Layer 3: Sine harmonic (brightness) ---
+    // Layer 3: Sine harmonic (brightness)
     const sine = ctx.createOscillator();
     const sineGain = ctx.createGain();
     sine.type = 'sine';
@@ -117,6 +136,81 @@ class AudioEngine {
     sine.start(now);
     oscillators.push(sine);
     gains.push(sineGain);
+
+    this.activeVoices.set(midiNote, { oscillators, gains, velocity });
+  }
+
+  /** Electric piano (Rhodes-like): warm sine layers with tremolo */
+  private startNoteElectric(midiNote: MidiNote, velocity: number): void {
+    const ctx = this.ensureContext();
+    const freq = midiNoteToFrequency(midiNote);
+    const now = ctx.currentTime;
+
+    const velScale = Math.max(0.2, velocity / 127);
+    const attack = 0.01;
+    const decay = 0.5;
+    const sustainLevel = 0.5;
+
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+
+    // Layer 1: Sine fundamental (warm base)
+    const sine1 = ctx.createOscillator();
+    const sine1Gain = ctx.createGain();
+    sine1.type = 'sine';
+    sine1.frequency.value = freq;
+    const sine1Vol = 0.30 * velScale;
+    sine1Gain.gain.setValueAtTime(0, now);
+    sine1Gain.gain.linearRampToValueAtTime(sine1Vol, now + attack);
+    sine1Gain.gain.linearRampToValueAtTime(sine1Vol * sustainLevel, now + attack + decay);
+    sine1.connect(sine1Gain);
+    sine1Gain.connect(this.masterGain!);
+    sine1.start(now);
+    oscillators.push(sine1);
+    gains.push(sine1Gain);
+
+    // Layer 2: Sine at 2x freq (bell-like overtone, characteristic of Rhodes)
+    const sine2 = ctx.createOscillator();
+    const sine2Gain = ctx.createGain();
+    sine2.type = 'sine';
+    sine2.frequency.value = freq * 2;
+    const sine2Vol = 0.15 * velScale;
+    sine2Gain.gain.setValueAtTime(0, now);
+    sine2Gain.gain.linearRampToValueAtTime(sine2Vol, now + attack);
+    // Bell overtone decays faster than fundamental
+    sine2Gain.gain.linearRampToValueAtTime(sine2Vol * 0.2, now + attack + decay);
+    sine2.connect(sine2Gain);
+    sine2Gain.connect(this.masterGain!);
+    sine2.start(now);
+    oscillators.push(sine2);
+    gains.push(sine2Gain);
+
+    // Layer 3: Tremolo via LFO modulating a triangle layer
+    const tri = ctx.createOscillator();
+    const triGain = ctx.createGain();
+    tri.type = 'triangle';
+    tri.frequency.value = freq;
+    tri.detune.value = 7; // slight chorus
+    const triVol = 0.10 * velScale;
+    triGain.gain.setValueAtTime(0, now);
+    triGain.gain.linearRampToValueAtTime(triVol, now + attack);
+    triGain.gain.linearRampToValueAtTime(triVol * sustainLevel, now + attack + decay);
+    tri.connect(triGain);
+
+    // LFO for tremolo effect
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 5.5; // ~5.5 Hz tremolo
+    lfoGain.gain.value = triVol * 0.3; // subtle modulation depth
+    lfo.connect(lfoGain);
+    lfoGain.connect(triGain.gain);
+    lfo.start(now);
+
+    triGain.connect(this.masterGain!);
+    tri.start(now);
+    oscillators.push(tri, lfo);
+    gains.push(triGain, lfoGain);
 
     this.activeVoices.set(midiNote, { oscillators, gains, velocity });
   }
