@@ -31,7 +31,7 @@ import PausedOverlay from './PausedOverlay';
 import ResultsScreen from './ResultsScreen';
 import HUD from './HUD';
 import CrescendoMeter from './CrescendoMeter';
-import PianoKeyboard from './PianoKeyboard';
+import PianoKeyboard, { getKeyboardHeight, countWhiteKeysInRange } from './PianoKeyboard';
 import GameCanvas from './GameCanvas';
 import FreePiano from './FreePiano';
 
@@ -44,7 +44,8 @@ export default function Game() {
   const [showProfileCreate, setShowProfileCreate] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState<SpeedOption>(1);
   const [twoHands, setTwoHands] = useState(false);
-  const isPracticeMode = speedMultiplier !== 1;
+  const [isAutoplay, setIsAutoplay] = useState(false);
+  const isPracticeMode = speedMultiplier !== 1 || isAutoplay;
 
   // Result data for the results screen
   const [lastResultData, setLastResultData] = useState<{
@@ -149,6 +150,11 @@ export default function Game() {
     return computePianoPositions(songDisplayRange.lowest, songDisplayRange.highest);
   }, [songDisplayRange]);
 
+  const keyboardHeight = useMemo(() => {
+    if (!songDisplayRange) return 80;
+    return getKeyboardHeight(countWhiteKeysInRange(songDisplayRange.lowest, songDisplayRange.highest));
+  }, [songDisplayRange]);
+
   // Determine initial screen based on profile state
   useEffect(() => {
     if (isLoading) return;
@@ -222,6 +228,16 @@ export default function Game() {
     audioRef.current?.setInstrument(instrument);
     setSpeedMultiplier(speed);
     setTwoHands(hands);
+    setIsAutoplay(false);
+    setGameState('COUNTDOWN');
+  }, [initAudio]);
+
+  const handleAutoplaySelected = useCallback((speed: SpeedOption, instrument: InstrumentType) => {
+    initAudio();
+    audioRef.current?.setInstrument(instrument);
+    setSpeedMultiplier(speed);
+    setTwoHands(false);
+    setIsAutoplay(true);
     setGameState('COUNTDOWN');
   }, [initAudio]);
 
@@ -329,7 +345,7 @@ export default function Game() {
   // Handle space for crescendo
   useEffect(() => {
     const handleSpace = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && gameState === 'PLAYING') {
+      if (e.code === 'Space' && gameState === 'PLAYING' && !isAutoplay) {
         e.preventDefault();
         const sm = scoreManagerRef.current;
         if (sm && sm.isCrescendoReady()) {
@@ -340,7 +356,7 @@ export default function Game() {
     };
     window.addEventListener('keydown', handleSpace);
     return () => window.removeEventListener('keydown', handleSpace);
-  }, [gameState]);
+  }, [gameState, isAutoplay]);
 
   // Handle escape for pause
   useEffect(() => {
@@ -368,6 +384,7 @@ export default function Game() {
     inputRef.current.stop();
     audioRef.current?.stopAllNotes();
     cancelAnimationFrame(rafRef.current);
+    setIsAutoplay(false);
     // Return to track map if we came from a track, otherwise to track select
     if (currentTrack) {
       setGameState('TRACK_MAP');
@@ -379,6 +396,7 @@ export default function Game() {
 
   const handleReplay = useCallback(() => {
     if (currentSong) {
+      setIsAutoplay(false);
       setGameState('COUNTDOWN');
     }
   }, [currentSong]);
@@ -444,7 +462,9 @@ export default function Game() {
       originalHandler(midiNote, lane);
     };
 
-    input.start();
+    if (!isAutoplay) {
+      input.start();
+    }
 
     const noteManager = noteManagerRef.current!;
     const scoreManager = scoreManagerRef.current!;
@@ -462,6 +482,77 @@ export default function Game() {
       particleSys.update(deltaTime);
       effectsMgr.update(deltaTime);
       scoreManager.updateCrescendo(deltaTime);
+
+      // --- AUTOPLAY: auto-hit notes at the correct time ---
+      if (isAutoplay) {
+        const audio = audioRef.current;
+        const visNotes = noteManager.getVisibleNotes();
+
+        for (const note of visNotes) {
+          if (note.hit || note.missed) continue;
+
+          const timeDiff = currentTime - note.songNote.time;
+
+          // Trigger when note reaches hit zone (within ~30ms = 2 frames at 60fps)
+          if (timeDiff >= 0 && timeDiff < 0.03) {
+            const midiNote = note.songNote.note;
+
+            // Play audio
+            audio?.startNote(midiNote);
+
+            // Schedule note-off after real-time duration
+            const durationMs = (note.songNote.duration / speedMultiplier) * 1000;
+            setTimeout(() => {
+              audio?.stopNote(midiNote);
+            }, Math.max(durationMs, 100));
+
+            // Register hit (will be PERFECT since timeDiff < 30ms < 50ms window)
+            const hitResult = noteManager.checkHit(midiNote, currentTime);
+            if (hitResult) {
+              scoreManager.addHit(hitResult.rating);
+
+              // Spawn particles & effects
+              const canvasWidth = window.innerWidth;
+              let hitX: number;
+              const pos = pianoPositions?.get(midiNote);
+              if (pos) {
+                hitX = pos.center * canvasWidth;
+              } else {
+                const laneWidth = canvasWidth / activeLanes.length;
+                hitX = note.lane * laneWidth + laneWidth / 2;
+              }
+              const hitY = (window.innerHeight - 80) * 0.85;
+              const color = getLaneColor(note.lane);
+              particleSys.emit(hitX, hitY, color, 15);
+              effectsMgr.addHitEffect(note.lane, hitResult.rating, hitX, hitY);
+            }
+
+            // Highlight keys visually
+            setPressedNotes(prev => new Set(prev).add(midiNote));
+            if (note.lane >= 0) {
+              setPressedLanes(prev => new Set(prev).add(note.lane));
+            }
+
+            // Release key highlight after duration
+            const releaseMs = Math.max(durationMs, 80);
+            const lane = note.lane;
+            setTimeout(() => {
+              setPressedNotes(prev => {
+                const next = new Set(prev);
+                next.delete(midiNote);
+                return next;
+              });
+              if (lane >= 0) {
+                setPressedLanes(prev => {
+                  const next = new Set(prev);
+                  next.delete(lane);
+                  return next;
+                });
+              }
+            }, releaseMs);
+          }
+        }
+      }
 
       const visible = noteManager.getVisibleNotes();
       for (const n of visible) {
@@ -520,7 +611,7 @@ export default function Game() {
       cancelAnimationFrame(rafRef.current);
       input.stop();
     };
-  }, [gameState, currentSong, handleNotePress, noteToLane, recordSongResult, speedMultiplier, isPracticeMode]);
+  }, [gameState, currentSong, handleNotePress, noteToLane, recordSongResult, speedMultiplier, isPracticeMode, isAutoplay, activeLanes, pianoPositions]);
 
   // --- Rendering ---
 
@@ -567,6 +658,7 @@ export default function Game() {
             songProgress={songProgress}
             activeLanes={activeLanes}
             pianoPositions={pianoPositions}
+            keyboardHeight={keyboardHeight}
           />
           <PianoKeyboard
             activeLanes={activeLanes}
@@ -589,11 +681,15 @@ export default function Game() {
             songTitle={currentSong.title}
             crescendoActive={crescendoActive}
           />
-          {isPracticeMode && (
+          {isAutoplay ? (
+            <div className="fixed top-14 left-1/2 -translate-x-1/2 z-40 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-semibold">
+              Watching Demo {speedMultiplier}x
+            </div>
+          ) : isPracticeMode ? (
             <div className="fixed top-14 left-1/2 -translate-x-1/2 z-40 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30 text-blue-300 text-xs font-semibold">
               Practice {speedMultiplier}x
             </div>
-          )}
+          ) : null}
           <CrescendoMeter
             meter={crescendoMeter}
             isReady={crescendoReady}
@@ -651,6 +747,7 @@ export default function Game() {
           song={currentSong}
           isMidiMode={effectiveMidiConnected}
           onStart={handleSpeedSelected}
+          onAutoplay={handleAutoplaySelected}
           onBack={() => {
             if (currentTrack) {
               setGameState('TRACK_MAP');
@@ -677,6 +774,7 @@ export default function Game() {
           isFirstClear={lastResultData?.isFirstClear ?? false}
           newBadges={lastResultData?.newBadges ?? []}
           isPracticeMode={isPracticeMode}
+          isAutoplayMode={isAutoplay}
           profile={profile}
           onReplay={handleReplay}
           onMenu={handleQuit}

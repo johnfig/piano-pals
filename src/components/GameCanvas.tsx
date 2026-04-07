@@ -15,6 +15,7 @@ interface GameCanvasProps {
   songProgress: number;
   activeLanes: MidiNote[];
   pianoPositions?: Map<MidiNote, PianoKeyPos>;
+  keyboardHeight?: number;
 }
 
 export default function GameCanvas({
@@ -27,6 +28,7 @@ export default function GameCanvas({
   songProgress,
   activeLanes,
   pianoPositions,
+  keyboardHeight = 80,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
@@ -67,7 +69,7 @@ export default function GameCanvas({
     <canvas
       ref={canvasRef}
       className="fixed inset-0 w-full"
-      style={{ height: 'calc(100% - 80px)' }}
+      style={{ height: `calc(100% - ${keyboardHeight}px)` }}
     />
   );
 }

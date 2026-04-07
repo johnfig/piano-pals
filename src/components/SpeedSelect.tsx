@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { Song } from '@/types/game';
 import { InstrumentType } from '@/engine/AudioEngine';
 
-export type SpeedOption = 0.5 | 0.75 | 1;
+export type SpeedOption = 0.5 | 0.75 | 1 | 1.5 | 2;
 
 interface SpeedSelectProps {
   song: Song;
   isMidiMode: boolean;
   onStart: (speed: SpeedOption, twoHands: boolean, instrument: InstrumentType) => void;
+  onAutoplay: (speed: SpeedOption, instrument: InstrumentType) => void;
   onBack: () => void;
 }
 
@@ -19,9 +20,18 @@ const SPEEDS: { value: SpeedOption; label: string; desc: string; color: string }
   { value: 1, label: '1x', desc: 'Normal', color: 'from-[#FF6B6B] to-[#E85555]' },
 ];
 
-export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: SpeedSelectProps) {
+const DEMO_SPEEDS: { value: SpeedOption; label: string }[] = [
+  { value: 0.5, label: '0.5x' },
+  { value: 0.75, label: '0.75x' },
+  { value: 1, label: '1x' },
+  { value: 1.5, label: '1.5x' },
+  { value: 2, label: '2x' },
+];
+
+export default function SpeedSelect({ song, isMidiMode, onStart, onAutoplay, onBack }: SpeedSelectProps) {
   const [twoHands, setTwoHands] = useState(false);
   const [instrument, setInstrument] = useState<InstrumentType>('piano');
+  const [demoSpeed, setDemoSpeed] = useState<SpeedOption>(1);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-[#0F0B1A] z-50 p-4 overflow-y-auto">
@@ -36,38 +46,36 @@ export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: Speed
           </div>
         </div>
 
-        {/* Hand mode toggle (MIDI only) */}
-        {isMidiMode && (
-          <div className="space-y-2">
-            <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
-              Hand Mode
-            </p>
-            <div className="flex rounded-xl overflow-hidden border border-white/10">
-              <button
-                onClick={() => setTwoHands(false)}
-                className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
-                  !twoHands
-                    ? 'bg-blue-500/20 text-blue-300 border-r border-blue-500/30'
-                    : 'bg-[#1A1530] text-gray-500 border-r border-white/10 hover:bg-white/5'
-                }`}
-              >
-                <span className="block text-lg mb-0.5">One Hand</span>
-                <span className="block text-[10px] opacity-70">Melody only</span>
-              </button>
-              <button
-                onClick={() => setTwoHands(true)}
-                className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
-                  twoHands
-                    ? 'bg-purple-500/20 text-purple-300'
-                    : 'bg-[#1A1530] text-gray-500 hover:bg-white/5'
-                }`}
-              >
-                <span className="block text-lg mb-0.5">Two Hands</span>
-                <span className="block text-[10px] opacity-70">Melody + Bass</span>
-              </button>
-            </div>
+        {/* Hand mode toggle */}
+        <div className="space-y-2">
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
+            Hand Mode
+          </p>
+          <div className="flex rounded-xl overflow-hidden border border-white/10">
+            <button
+              onClick={() => setTwoHands(false)}
+              className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
+                !twoHands
+                  ? 'bg-blue-500/20 text-blue-300 border-r border-blue-500/30'
+                  : 'bg-[#1A1530] text-gray-500 border-r border-white/10 hover:bg-white/5'
+              }`}
+            >
+              <span className="block text-lg mb-0.5">One Hand</span>
+              <span className="block text-[10px] opacity-70">Melody only</span>
+            </button>
+            <button
+              onClick={() => setTwoHands(true)}
+              className={`flex-1 py-3 px-4 text-sm font-semibold transition-all ${
+                twoHands
+                  ? 'bg-purple-500/20 text-purple-300'
+                  : 'bg-[#1A1530] text-gray-500 hover:bg-white/5'
+              }`}
+            >
+              <span className="block text-lg mb-0.5">Two Hands</span>
+              <span className="block text-[10px] opacity-70">Melody + Bass</span>
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Instrument selector */}
         <div className="space-y-2">
@@ -130,6 +138,38 @@ export default function SpeedSelect({ song, isMidiMode, onStart, onBack }: Speed
               <div className="absolute inset-0 bg-gradient-to-r from-[#FF6B6B]/0 via-[#FF6B6B]/5 to-[#FF6B6B]/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </button>
           ))}
+        </div>
+
+        {/* Watch Demo */}
+        <div className="space-y-3 pt-2 border-t border-white/5">
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider">
+            Watch Demo
+          </p>
+          <div className="flex gap-2 justify-center">
+            {DEMO_SPEEDS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setDemoSpeed(value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  demoSpeed === value
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : 'bg-[#1A1530] text-gray-500 border border-white/10 hover:bg-white/5'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => onAutoplay(demoSpeed, instrument)}
+            className="w-full group relative overflow-hidden rounded-xl border border-purple-500/20 bg-purple-500/10 px-6 py-3 text-center transition-all hover:bg-purple-500/20 hover:border-purple-500/30 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-lg">👁</span>
+              <span className="text-purple-300 font-bold">Watch at {DEMO_SPEEDS.find(s => s.value === demoSpeed)?.label}</span>
+            </div>
+            <p className="text-purple-400/60 text-xs mt-1">See & hear the song played perfectly — no XP</p>
+          </button>
         </div>
 
         {/* Back */}

@@ -82,42 +82,39 @@ function generateBassAccompaniment(
 }
 
 /**
- * Resolve which note set to use based on MIDI connection and hand mode.
+ * Resolve which note set to use based on hand mode.
  *
- * - One-hand mode (twoHands=false): melody only, no bass
- * - Two-hand mode (twoHands=true): melody + auto-generated bass accompaniment
- * - Notes stay at their authored pitch (no octave shift)
+ * - One-hand (twoHands=false): `notes` = right hand melody only
+ * - Two-hand (twoHands=true): `pianoNotes` if available (real arrangement with both hands),
+ *   otherwise auto-generate bass accompaniment from the melody
  */
 export function resolveSongData(
   song: Song,
   midiConnected: boolean,
   twoHands: boolean = false,
 ): ResolvedSongData {
-  const usePiano = midiConnected && !!song.pianoNotes;
-  const rawNotes = usePiano ? song.pianoNotes! : song.notes;
-  const rawRange = usePiano ? (song.pianoNoteRange ?? song.noteRange) : song.noteRange;
+  // Apply octave offset so keys sit around C3 on the physical keyboard
+  const baseNotes = shiftNotes(song.notes, OCTAVE_OFFSET);
+  const baseRange = shiftRange(song.noteRange, OCTAVE_OFFSET);
 
-  // Apply octave offset so right hand sits around C3 on the physical keyboard
-  const baseNotes = shiftNotes(rawNotes, OCTAVE_OFFSET);
-  const baseRange = shiftRange(rawRange, OCTAVE_OFFSET);
-
-  if (midiConnected) {
-    if (twoHands) {
-      // Two-hand mode: add bass accompaniment (uses shifted range)
-      const bassNotes = generateBassAccompaniment(baseNotes, baseRange, song.bpm);
-      const allNotes = [...baseNotes, ...bassNotes].sort((a, b) => a.time - b.time);
-      const expandedRange: NoteRange = {
-        lowest: baseRange.lowest - 12,
-        highest: baseRange.highest,
-        whiteKeysOnly: baseRange.whiteKeysOnly,
-      };
-      return { notes: allNotes, noteRange: expandedRange, isMidiMode: true };
+  if (twoHands) {
+    if (song.pianoNotes && song.pianoNoteRange) {
+      // Real two-hand arrangement provided — use it directly
+      const twoHandNotes = shiftNotes(song.pianoNotes, OCTAVE_OFFSET);
+      const twoHandRange = shiftRange(song.pianoNoteRange, OCTAVE_OFFSET);
+      return { notes: twoHandNotes, noteRange: twoHandRange, isMidiMode: midiConnected };
     }
-
-    // One-hand mode: melody only
-    return { notes: baseNotes, noteRange: baseRange, isMidiMode: true };
+    // Fallback: auto-generate bass from the melody
+    const bassNotes = generateBassAccompaniment(baseNotes, baseRange, song.bpm);
+    const allNotes = [...baseNotes, ...bassNotes].sort((a, b) => a.time - b.time);
+    const expandedRange: NoteRange = {
+      lowest: baseRange.lowest - 12,
+      highest: baseRange.highest,
+      whiteKeysOnly: baseRange.whiteKeysOnly,
+    };
+    return { notes: allNotes, noteRange: expandedRange, isMidiMode: midiConnected };
   }
 
-  // Keyboard mode: also shifted down
-  return { notes: baseNotes, noteRange: baseRange, isMidiMode: false };
+  // One-hand mode: melody only (RH)
+  return { notes: baseNotes, noteRange: baseRange, isMidiMode: midiConnected };
 }
