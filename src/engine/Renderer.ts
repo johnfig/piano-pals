@@ -249,11 +249,11 @@ class Renderer {
     const pos = this.lanePositions[note.lane];
     const laneX = pos.x * w;
     const laneW = pos.width * w;
-    const noteWidth = laneW * (pos.isBlack ? 0.75 : 0.7);
+    const noteWidth = laneW * (pos.isBlack ? 0.8 : 0.82);
     const color = crescendoActive ? CRESCENDO_COLOR : getLaneColor(note.lane);
 
     const x = laneX + (laneW - noteWidth) / 2;
-    const noteHeight = Math.max(note.height * h * HIT_ZONE_Y * 0.3, 20);
+    const noteHeight = Math.max(note.height * h * HIT_ZONE_Y * 0.3, 28);
     const y = note.y * h * HIT_ZONE_Y - noteHeight;
 
     ctx.save();
@@ -290,17 +290,31 @@ class Renderer {
     ctx.fillStyle = innerGradient;
     ctx.fill();
 
-    // Note name label inside the block
+    // Note name label inside the block — large, high-contrast, easy to read
     if (!note.hit && !note.missed) {
-      const noteName = midiNoteToName(note.songNote.note);
-      const fontSize = Math.max(10, Math.min(14, noteWidth * 0.45));
+      const fullName = midiNoteToName(note.songNote.note);
+      // Strip octave number for cleaner display (e.g., "C3" → "C", "F#3" → "F#")
+      const noteName = fullName.replace(/\d+$/, '');
+
+      // Scale font to the note block — larger and bolder than before
+      const fontSize = Math.max(14, Math.min(28, noteWidth * 0.65, noteHeight * 0.6));
+      const centerX = x + noteWidth / 2;
+      const labelY = y + Math.min(noteHeight / 2, fontSize * 0.8);
+
       ctx.shadowBlur = 0;
-      ctx.font = `bold ${fontSize}px "Inter", sans-serif`;
+      ctx.font = `900 ${fontSize}px "Inter", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      const labelY = y + Math.min(noteHeight / 2, fontSize);
-      ctx.fillText(noteName, x + noteWidth / 2, labelY);
+
+      // Dark outline for contrast against bright note colors
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(noteName, centerX, labelY);
+
+      // Bright white fill
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(noteName, centerX, labelY);
     }
 
     // Brightness pulse as note approaches hit zone

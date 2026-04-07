@@ -1,9 +1,28 @@
 import { Song, SongNote, NoteRange } from '@/types/game';
 
+/**
+ * All songs are authored in octave 4 (C4=60) for sheet-music clarity,
+ * but the physical keyboard plays best with right hand around C3 (MIDI 48).
+ * This offset shifts everything down one octave at resolution time.
+ */
+const OCTAVE_OFFSET = -12;
+
 export interface ResolvedSongData {
   notes: SongNote[];
   noteRange: NoteRange;
   isMidiMode: boolean;
+}
+
+/** Shift a note array by a semitone offset */
+function shiftNotes(notes: SongNote[], offset: number): SongNote[] {
+  if (offset === 0) return notes;
+  return notes.map(n => ({ ...n, note: n.note + offset }));
+}
+
+/** Shift a note range by a semitone offset */
+function shiftRange(range: NoteRange, offset: number): NoteRange {
+  if (offset === 0) return range;
+  return { ...range, lowest: range.lowest + offset, highest: range.highest + offset };
 }
 
 /**
@@ -75,12 +94,16 @@ export function resolveSongData(
   twoHands: boolean = false,
 ): ResolvedSongData {
   const usePiano = midiConnected && !!song.pianoNotes;
-  const baseNotes = usePiano ? song.pianoNotes! : song.notes;
-  const baseRange = usePiano ? (song.pianoNoteRange ?? song.noteRange) : song.noteRange;
+  const rawNotes = usePiano ? song.pianoNotes! : song.notes;
+  const rawRange = usePiano ? (song.pianoNoteRange ?? song.noteRange) : song.noteRange;
+
+  // Apply octave offset so right hand sits around C3 on the physical keyboard
+  const baseNotes = shiftNotes(rawNotes, OCTAVE_OFFSET);
+  const baseRange = shiftRange(rawRange, OCTAVE_OFFSET);
 
   if (midiConnected) {
     if (twoHands) {
-      // Two-hand mode: add bass accompaniment
+      // Two-hand mode: add bass accompaniment (uses shifted range)
       const bassNotes = generateBassAccompaniment(baseNotes, baseRange, song.bpm);
       const allNotes = [...baseNotes, ...bassNotes].sort((a, b) => a.time - b.time);
       const expandedRange: NoteRange = {
@@ -91,10 +114,10 @@ export function resolveSongData(
       return { notes: allNotes, noteRange: expandedRange, isMidiMode: true };
     }
 
-    // One-hand mode: melody only, no shift
+    // One-hand mode: melody only
     return { notes: baseNotes, noteRange: baseRange, isMidiMode: true };
   }
 
-  // Keyboard mode: no changes
+  // Keyboard mode: also shifted down
   return { notes: baseNotes, noteRange: baseRange, isMidiMode: false };
 }
