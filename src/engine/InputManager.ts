@@ -58,6 +58,14 @@ class InputManager {
     try {
       this.midiAccess = await navigator.requestMIDIAccess({ sysex: false });
       this.midiEnabled = true;
+
+      // Open all inputs explicitly (some devices need this to enumerate)
+      const openPromises: Promise<unknown>[] = [];
+      this.midiAccess.inputs.forEach((input) => {
+        openPromises.push(input.open().catch(() => {}));
+      });
+      await Promise.all(openPromises);
+
       this.updateMidiDevices();
 
       // Listen for device connect/disconnect — always re-bind listeners
@@ -68,6 +76,13 @@ class InputManager {
 
       // Bind listeners immediately
       this.startMidiListening();
+
+      // If no devices yet, retry after a short delay (USB enumeration can be slow)
+      if (this.midiDevices.length === 0) {
+        await new Promise(r => setTimeout(r, 500));
+        this.updateMidiDevices();
+        this.startMidiListening();
+      }
 
       if (this.midiDevices.length === 0) {
         this.lastMidiError = 'MIDI enabled but no keyboard detected. Check USB connection.';
@@ -90,8 +105,23 @@ class InputManager {
   async reconnectMidi(): Promise<boolean> {
     this.lastMidiError = null;
     if (this.midiAccess) {
+      // Open all inputs explicitly
+      const openPromises: Promise<unknown>[] = [];
+      this.midiAccess.inputs.forEach((input) => {
+        openPromises.push(input.open().catch(() => {}));
+      });
+      await Promise.all(openPromises);
+
       this.updateMidiDevices();
       this.startMidiListening();
+
+      if (this.midiDevices.length === 0) {
+        // Retry after delay
+        await new Promise(r => setTimeout(r, 500));
+        this.updateMidiDevices();
+        this.startMidiListening();
+      }
+
       if (this.midiDevices.length === 0) {
         this.lastMidiError = 'No keyboard detected. Check USB connection and try again.';
       }
@@ -104,9 +134,11 @@ class InputManager {
     if (!this.midiAccess) return;
     this.midiDevices = [];
     this.midiAccess.inputs.forEach((input) => {
-      if (input.state === 'connected') {
-        this.midiDevices.push(input.name || 'Unknown MIDI Device');
-      }
+      // Include all inputs — don't filter by state. Some devices report
+      // 'disconnected' even when physically connected until opened.
+      const name = input.name || 'Unknown MIDI Device';
+      const label = input.state === 'connected' ? name : `${name} (${input.state})`;
+      this.midiDevices.push(label);
     });
     for (const cb of this.midiDeviceListeners) {
       cb(this.midiDevices);
