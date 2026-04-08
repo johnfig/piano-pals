@@ -9,6 +9,7 @@ export type GameState =
   | 'TRACK_MAP'
   | 'MENU'
   | 'SPEED_SELECT'
+  | 'WARMUP'
   | 'COUNTDOWN'
   | 'PLAYING'
   | 'PAUSED'

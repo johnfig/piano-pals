@@ -34,6 +34,7 @@ import CrescendoMeter from './CrescendoMeter';
 import PianoKeyboard, { getKeyboardHeight, countWhiteKeysInRange } from './PianoKeyboard';
 import GameCanvas from './GameCanvas';
 import FreePiano from './FreePiano';
+import Warmup from './Warmup';
 
 export default function Game() {
   const { profile, allProfiles, isNewUser, isLoading, createNewProfile, switchProfile, removeProfile, recordSongResult, updateProfile } = useProfile();
@@ -229,7 +230,7 @@ export default function Game() {
     setSpeedMultiplier(speed);
     setTwoHands(hands);
     setIsAutoplay(false);
-    setGameState('COUNTDOWN');
+    setGameState('WARMUP');
   }, [initAudio]);
 
   const handleAutoplaySelected = useCallback((speed: SpeedOption, instrument: InstrumentType) => {
@@ -244,6 +245,10 @@ export default function Game() {
   const handleBackToTracks = useCallback(() => {
     setCurrentTrack(null);
     setGameState('TRACK_SELECT');
+  }, []);
+
+  const handleWarmupComplete = useCallback(() => {
+    setGameState('COUNTDOWN');
   }, []);
 
   // Start playing after countdown
@@ -755,6 +760,19 @@ export default function Game() {
               setGameState('MENU');
             }
           }}
+        />
+      )}
+
+      {gameState === 'WARMUP' && currentSong && (
+        <Warmup
+          song={currentSong}
+          activeLanes={activeLanes}
+          keyLabels={keyLabels}
+          displayRange={songDisplayRange ?? undefined}
+          inputManager={inputRef.current}
+          isMidiMode={effectiveMidiConnected}
+          onStart={handleWarmupComplete}
+          onBack={() => setGameState('SPEED_SELECT')}
         />
       )}
 
